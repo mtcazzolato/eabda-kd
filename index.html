@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Distillation em Imagens Médicas · X EABDA · ICMC/USP</title>
+<meta name="description" content="Curso da X Escola Avançada de Big Data Analysis (ICMC/USP): uma introdução prática a Knowledge Distillation em imagens médicas, com teoria e prática em Python. Ministrantes: Graciella Favoreto, Mariana Suzuki e Mirela Cazzolato.">
+<meta name="author" content="Graciella Favoreto; Mariana Suzuki; Mirela Teixeira Cazzolato">
+<meta property="og:title" content="Uma introdução prática a Knowledge Distillation em Imagens Médicas">
+<meta property="og:description" content="Curso da X EABDA, no ICMC/USP. Como ensinar um modelo pequeno a imitar um grande, aplicado à detecção de pneumonia em radiografias.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://mtcazzolato.github.io/eabda-kd/img/hero-xrays.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e5a61'/%3E%3Crect x='12' y='12' width='28' height='28' rx='4' fill='%23fff'/%3E%3Crect x='44' y='42' width='9' height='9' rx='2' fill='%23f2a17c'/%3E%3C/svg%3E">
+
+<!-- =====================================================================
+     ✏️  LINKS DOS SLIDES E DOS SCRIPTS DO CURSO
+     Quando estiverem prontos, cole cada link entre as aspas abaixo.
+     Exemplos:
+       SLIDES_URL  = "slides.pdf"   (PDF colocado nesta mesma pasta)
+       SLIDES_URL  = "https://drive.google.com/..."
+       SCRIPTS_URL = "https://github.com/mtcazzolato/eabda-kd-scripts"
+     Só isso: a faixa do topo e os cartões da seção "Slides e scripts"
+     passam de "Em breve" para "Disponível" sozinhos. Pode publicar um
+     antes do outro.
+     ===================================================================== -->
+<script>
+  window.SLIDES_URL  = "";
+  window.SCRIPTS_URL = "";
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f3ef;
+  --surface:#ffffff;
+  --surface-2:#f0eae4;
+  --ink:#1b1d1f;
+  --ink-2:#48464a;
+  --ink-3:#736c66;
+  --primary:#0e5a61;
+  --primary-soft:#e2efee;
+  --accent:#b4532e;
+  --accent-soft:#fbede5;
+  --peach:#f2a17c;
+  --line:#e6ded6;
+  --bar-neutral:#bdb4ac;
+  --shadow:0 1px 2px rgba(27,29,31,.05), 0 10px 28px rgba(27,29,31,.06);
+  --radius:16px;
+  --maxw:1120px;
+  --font:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1416; --surface:#162024; --surface-2:#1d292d;
+    --ink:#edf1f0; --ink-2:#c2cbca; --ink-3:#8d9a99;
+    --primary:#7cc8cd; --primary-soft:#173337;
+    --accent:#f0a07a; --accent-soft:#33241d;
+    --line:#2a373b; --bar-neutral:#56625f;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{scroll-behavior:smooth; scroll-padding-top:72px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--font); font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%; display:block}
+a{color:var(--accent); text-underline-offset:3px}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+@media (max-width:480px){.wrap{padding:0 16px}}
+code, pre{font-family:var(--mono)}
+
+/* ---------- Faixa de aviso (slides e scripts) ---------- */
+.topbar{background:var(--accent-soft); border-bottom:1px solid color-mix(in srgb, var(--accent) 22%, transparent); font-size:.9rem; color:var(--ink-2)}
+.topbar__inner{display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; justify-content:center; padding:9px 0; text-align:center}
+.topbar a{font-weight:700; text-decoration:none}
+.topbar a:hover{text-decoration:underline}
+
+/* ---------- Cabeçalho ---------- */
+.hero{position:relative; overflow:hidden; color:#fff; background:#0a2c31}
+.hero__bg{position:absolute; inset:0; background:url("img/hero-xrays.jpg") center/cover no-repeat; opacity:.42; filter:contrast(1.15)}
+.hero__veil{position:absolute; inset:0; background:linear-gradient(115deg, rgba(7,36,41,.96) 0%, rgba(10,50,56,.86) 50%, rgba(86,48,35,.78) 100%)}
+.hero__inner{position:relative; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:48px; align-items:center; padding:72px 24px 68px}
+@media (max-width:920px){.hero__inner{grid-template-columns:minmax(0,1fr); gap:40px; padding-top:56px; padding-bottom:56px}}
+@media (max-width:480px){.hero__inner{padding-left:16px; padding-right:16px}}
+.eyebrow{display:inline-block; font-size:.76rem; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:700; color:#ffd9c6; border:1px solid #ffffff3d; border-radius:999px; padding:5px 14px; margin-bottom:22px}
+.hero h1{margin:0 0 16px; font-size:clamp(2rem,4.4vw,3.15rem); line-height:1.12; letter-spacing:-.025em; font-weight:800}
+.hero h1 .hl{background:linear-gradient(90deg,#ffc3a6,#f2a17c 60%,#e8875f); -webkit-background-clip:text; background-clip:text; color:transparent}
+.hero p.lead{margin:0 0 24px; max-width:60ch; font-size:1.1rem; color:#d7e6e6}
+.when{display:flex; flex-wrap:wrap; gap:8px; list-style:none; padding:0; margin:0 0 26px}
+.when li{display:inline-flex; align-items:center; gap:7px; font-size:.88rem; font-weight:600; color:#eaf3f3;
+  background:#ffffff14; border:1px solid #ffffff26; border-radius:999px; padding:6px 13px}
+.people{display:flex; align-items:center; gap:14px; margin-bottom:30px}
+.people__faces{display:flex; flex-shrink:0}
+.people__faces img{width:46px; height:46px; border-radius:50%; object-fit:cover; border:2.5px solid #0d3a40; margin-left:-12px}
+.people__faces img:first-child{margin-left:0}
+.people p{margin:0; font-size:.95rem; color:#cfe0e0; line-height:1.45}
+.people strong{color:#fff; font-weight:700}
+.cta{display:flex; flex-wrap:wrap; gap:12px}
+.btn{display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:999px;
+  font-weight:700; font-size:.95rem; text-decoration:none; border:1px solid transparent; transition:transform .12s ease, filter .12s ease}
+.btn:hover{transform:translateY(-1px)}
+.btn--solid{background:#f2a17c; color:#2a140b}
+.btn--solid:hover{filter:brightness(1.06)}
+.btn--ghost{border-color:#ffffff5c; color:#fff}
+.btn--ghost:hover{background:#ffffff12}
+
+/* ---------- Visual professor → aprendiz ---------- */
+.distill{--big:150px; background:#ffffff0f; border:1px solid #ffffff24; border-radius:20px; padding:26px 24px 22px; backdrop-filter:blur(6px)}
+.distill__title{margin:0 0 18px; font-size:.76rem; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:#a9cfd1}
+.distill__row{display:grid; grid-template-columns:auto 1fr auto; align-items:start; gap:10px}
+.mdl{margin:0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center}
+.mdl__sq{width:var(--s); height:var(--s); border-radius:6px}
+.mdl--teacher .mdl__sq{
+  background:
+    radial-gradient(circle at 1px 1px, #ffffff38 1.2px, transparent 1.6px) 0 0/12px 12px,
+    linear-gradient(140deg,#1d8a92,#0e5a61);
+  box-shadow:inset 0 0 0 1px #ffffff30}
+.mdl--student .mdl__stage{height:var(--big); display:flex; align-items:flex-end; justify-content:center}
+.mdl--student .mdl__sq{background:#f2a17c; border-radius:2px; box-shadow:0 0 0 4px #f2a17c33, 0 0 18px 6px #f2a17c55; animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px #f2a17c22, 0 0 26px 10px #f2a17c44}}
+.mdl figcaption{font-size:.8rem; line-height:1.35; color:#cfe0e0}
+.mdl figcaption b{display:block; font-size:.92rem; color:#fff}
+.mdl figcaption .n{display:block; margin-top:2px; font-weight:700; color:#ffd9c6}
+.flow{position:relative; height:var(--big); display:flex; flex-direction:column; justify-content:flex-end; align-items:center; padding-bottom:1px}
+.flow__line{position:relative; width:100%; height:2px; background:linear-gradient(90deg,#7cc8cd66,#f2a17c); border-radius:2px; overflow:visible}
+.flow__line::after{content:""; position:absolute; right:-2px; top:-4px; border:5px solid transparent; border-left:7px solid #f2a17c; border-right:0}
+.flow__dot{position:absolute; top:-3px; width:8px; height:8px; border-radius:50%; background:#ffd9c6; opacity:0; animation:travel 2.6s linear infinite}
+.flow__dot:nth-child(2){animation-delay:.87s}
+.flow__dot:nth-child(3){animation-delay:1.73s}
+@keyframes travel{0%{left:0; opacity:0; transform:scale(1.4)} 15%{opacity:1} 85%{opacity:1} 100%{left:calc(100% - 8px); opacity:0; transform:scale(.6)}}
+.flow small{display:block; margin-bottom:10px; font-size:.74rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#ffd9c6; white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.flow__dot,.mdl--student .mdl__sq{animation:none}.flow__dot{display:none}}
+.distill__big{margin:22px 0 2px; padding-top:18px; border-top:1px solid #ffffff1f; font-size:2.1rem; font-weight:800; letter-spacing:-.02em; line-height:1.1}
+.distill__big span{font-size:1rem; font-weight:600; color:#cfe0e0; letter-spacing:0}
+.distill__note{margin:6px 0 0; font-size:.8rem; color:#9dbfc1}
+@media (max-width:480px){
+  .distill{--big:104px; padding:22px 18px 18px}
+  .distill__row{gap:6px}
+  .flow small{font-size:.66rem; letter-spacing:.04em}
+  .mdl figcaption{font-size:.74rem}
+  .distill__big{font-size:1.8rem}
+}
+
+/* ---------- Navegação ---------- */
+nav{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+nav ul{display:flex; gap:2px; list-style:none; margin:0; padding:0; overflow-x:auto; scrollbar-width:none}
+nav ul::-webkit-scrollbar{display:none}
+nav a{display:block; padding:15px 13px; font-size:.9rem; font-weight:600; color:var(--ink-2); text-decoration:none; white-space:nowrap; border-bottom:2px solid transparent}
+nav a:hover{color:var(--accent)}
+nav a.is-active{color:var(--primary); border-bottom-color:var(--primary)}
+nav a.nav-dl{color:var(--accent)}
+
+/* ---------- Seções ---------- */
+section{padding:72px 0; border-bottom:1px solid var(--line)}
+h2{font-size:clamp(1.55rem,2.7vw,2.1rem); letter-spacing:-.02em; margin:0 0 8px; font-weight:800; line-height:1.2}
+h2 .num{color:var(--accent); font-size:.8em; margin-right:.55rem; font-variant-numeric:tabular-nums}
+.section-sub{color:var(--ink-3); margin:0 0 38px; max-width:72ch}
+h3{font-size:1.12rem; margin:0 0 8px; font-weight:700; letter-spacing:-.01em}
+h4{font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin:0 0 14px; font-weight:700}
+p{margin:0 0 1rem}
+.cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:32px}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr); gap:24px}}
+ul.clean{margin:0 0 1rem; padding-left:1.15rem}
+ul.clean li{margin-bottom:.5rem; color:var(--ink-2)}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+.tag{display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--primary); background:var(--primary-soft); border-radius:999px; padding:3px 10px; margin-bottom:12px}
+.block{margin-top:56px}
+.block:first-of-type{margin-top:0}
+
+/* ---------- 01 · O curso ---------- */
+.question{position:relative; margin:0 0 34px; padding:26px 30px 26px 34px; background:var(--accent-soft); border-radius:var(--radius);
+  border:1px solid color-mix(in srgb, var(--accent) 22%, transparent)}
+.question::before{content:""; position:absolute; left:0; top:18px; bottom:18px; width:4px; border-radius:0 4px 4px 0; background:var(--accent)}
+.question small{display:block; font-size:.74rem; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--accent); margin-bottom:6px}
+.question p{margin:0; font-size:clamp(1.12rem,2vw,1.35rem); font-weight:600; line-height:1.45; color:var(--ink)}
+.motiv{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:44px}
+@media (max-width:820px){.motiv{grid-template-columns:1fr}}
+.motiv .card{padding:22px 22px 18px}
+.motiv .ico{font-size:1.6rem; display:block; margin-bottom:10px; line-height:1}
+.motiv ul{margin:0; padding-left:1.1rem; font-size:.95rem; color:var(--ink-2)}
+.motiv li{margin-bottom:.3rem}
+.outcomes{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.outcomes li{position:relative; padding-left:36px; color:var(--ink-2); font-size:.98rem}
+.outcomes li::before{content:"✓"; position:absolute; left:0; top:1px; display:grid; place-items:center; width:24px; height:24px; border-radius:50%;
+  background:var(--primary-soft); color:var(--primary); font-weight:800; font-size:.8rem}
+.meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin:0}
+.meta{padding:18px 20px}
+.meta dt{font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:700; margin-bottom:6px}
+.meta dd{margin:0; font-size:.98rem; font-weight:700; color:var(--ink); line-height:1.4}
+.meta dd span{display:block; font-weight:400; color:var(--ink-2); font-size:.9rem; margin-top:2px}
+
+/* ---------- 02 · Ministrantes ---------- */
+.team{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+@media (max-width:900px){.team{grid-template-columns:1fr}}
+.person{padding:30px 28px 26px; display:flex; flex-direction:column}
+.person__head{display:flex; gap:20px; align-items:center; margin-bottom:18px}
+.person__photo{flex-shrink:0; width:132px; height:132px; border-radius:50%; padding:4px;
+  background:conic-gradient(from 210deg, var(--primary), #3fa3a9, var(--peach), var(--accent), var(--primary))}
+.person__photo img{width:100%; height:100%; border-radius:50%; object-fit:cover; border:4px solid var(--surface)}
+.person__role{display:inline-block; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--accent); margin-bottom:4px}
+.person h3{font-size:1.45rem; margin:0 0 4px; letter-spacing:-.02em}
+.person__aff{margin:0; font-size:.9rem; color:var(--ink-3); line-height:1.4}
+.person__lead{font-size:1rem; color:var(--ink); font-weight:500}
+.person ul.clean{font-size:.94rem}
+.highlight{display:inline-flex; align-items:center; gap:8px; align-self:flex-start; margin:0 0 16px; padding:7px 14px; border-radius:999px;
+  background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:.86rem; border:1px solid color-mix(in srgb, var(--accent) 25%, transparent)}
+.chips{display:flex; flex-wrap:wrap; gap:6px; list-style:none; padding:0; margin:4px 0 20px}
+.chips li{font-size:.8rem; font-weight:600; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:3px 11px}
+.person__mail{margin-top:auto; padding-top:16px; border-top:1px solid var(--line); font-size:.92rem}
+.person__mail a{font-weight:600; text-decoration:none}
+.person__mail a:hover{text-decoration:underline}
+@media (max-width:520px){
+  .person{padding:24px 20px}
+  .person__head{flex-direction:column; align-items:flex-start; gap:14px}
+  .person__photo{width:112px; height:112px}
+}
+.person--wide{margin-top:22px; display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:0 44px; align-items:stretch}
+.person--wide > div{display:flex; flex-direction:column}
+.person--wide ul.clean{margin-top:2px}
+@media (max-width:900px){.person--wide{grid-template-columns:minmax(0,1fr)}}
+.group-note{margin:22px 0 0; font-size:.92rem; color:var(--ink-3)}
+
+/* ---------- 03 · Programa ---------- */
+.timeline{position:relative; list-style:none; margin:0; padding:0 0 0 34px; max-width:860px}
+.timeline::before{content:""; position:absolute; left:11px; top:10px; bottom:10px; width:2px; background:var(--line)}
+.timeline > li{position:relative; margin-bottom:16px}
+.timeline > li::before{content:""; position:absolute; left:-29px; top:24px; width:14px; height:14px; border-radius:50%;
+  background:var(--surface); border:3px solid var(--primary)}
+.tl{padding:20px 24px}
+.tl__head{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin-bottom:8px}
+.tl__head h3{margin:0}
+.tl__kind{font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--primary)}
+.tl ul{margin:0; padding-left:1.1rem; font-size:.95rem; color:var(--ink-2)}
+.tl li{margin-bottom:.3rem}
+.tl li span{color:var(--ink-3)}
+.timeline > li.is-break::before{border-color:var(--accent)}
+.tl--break{background:transparent; box-shadow:none; border-style:dashed; padding:14px 24px; color:var(--ink-3); font-weight:600}
+.timeline > li.is-practice::before{background:var(--accent); border-color:var(--accent)}
+
+/* ---------- 04 · Conceitos ---------- */
+.cad{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; counter-reset:cad; margin-bottom:22px}
+@media (max-width:960px){.cad{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.cad{grid-template-columns:1fr}}
+.cad .card{position:relative; padding:18px 18px 16px}
+.cad .card::before{counter-increment:cad; content:counter(cad); display:grid; place-items:center; width:30px; height:30px; border-radius:9px;
+  background:var(--primary); color:#fff; font-weight:800; font-size:.9rem; margin-bottom:12px}
+@media (prefers-color-scheme: dark){.cad .card::before{color:#0f1416}}
+.cad h3{font-size:1rem; margin-bottom:4px}
+.cad p{margin:0; font-size:.88rem; color:var(--ink-3); line-height:1.5}
+.cad .card:last-child{border-color:color-mix(in srgb, var(--primary) 45%, var(--line)); background:var(--primary-soft)}
+.note{font-size:.95rem; color:var(--ink-2); max-width:80ch}
+.archs{display:inline-flex; flex-wrap:wrap; gap:6px; vertical-align:middle}
+.archs code{font-size:.82em; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:1px 7px; color:var(--ink)}
+
+.kd-def{display:grid; grid-template-columns:1.1fr 1fr; gap:32px; align-items:start}
+@media (max-width:860px){.kd-def{grid-template-columns:1fr}}
+.kd-def .big{font-size:1.25rem; font-weight:600; line-height:1.5; color:var(--ink); margin-bottom:18px}
+.kd-def .big em{font-style:normal; color:var(--primary)}
+blockquote{margin:0 0 4px; padding:4px 0 4px 18px; border-left:3px solid var(--peach); color:var(--ink-2); font-style:italic; font-size:.98rem}
+.system{padding:24px}
+.system__root{display:block; text-align:center; font-weight:700; padding:10px 14px; border-radius:12px; background:var(--accent-soft); color:var(--ink);
+  border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); margin-bottom:22px; position:relative}
+.system__root::after{content:""; position:absolute; left:50%; bottom:-23px; width:1.5px; height:22px; background:var(--line)}
+.system__kids{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; position:relative; padding-top:14px; border-top:1.5px solid var(--line)}
+.system__kids > div{text-align:center; padding:12px 8px; border:1px solid var(--line); border-radius:12px; background:var(--surface); font-size:.86rem; font-weight:700; line-height:1.3}
+.system__kids small{display:block; margin-top:6px; font-weight:500; color:var(--ink-3); font-size:.78rem}
+@media (max-width:460px){.system__kids{grid-template-columns:1fr}}
+
+/* laboratório de temperatura */
+.lab{display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:34px; padding:30px; align-items:center}
+@media (max-width:860px){.lab{grid-template-columns:1fr; gap:24px; padding:24px 20px}}
+.lab p{font-size:.95rem; color:var(--ink-2)}
+.lab__t{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:18px 0 6px}
+.lab__t label{font-weight:700; font-size:.95rem}
+.lab__t output{font-size:1.8rem; font-weight:800; color:var(--accent); letter-spacing:-.02em}
+input[type=range]{width:100%; accent-color:var(--accent); height:28px; cursor:pointer}
+.scale{position:relative; height:18px; margin:-2px 9px 0; font-size:.75rem; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.scale span{position:absolute; top:0; transform:translateX(-50%); white-space:nowrap}
+.scale b{color:var(--accent)}
+.eq{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:20px; padding:14px 16px; border-radius:12px; background:var(--surface-2);
+  font-family:var(--mono); font-size:.92rem; color:var(--ink)}
+.frac{display:inline-flex; flex-direction:column; text-align:center; line-height:1.5}
+.frac > span:first-child{border-bottom:1.5px solid currentColor; padding:0 4px 2px}
+.frac > span:last-child{padding:2px 4px 0}
+.eq small{font-family:var(--font); color:var(--ink-3); font-size:.8rem; flex-basis:100%}
+.probs{display:grid; gap:14px}
+.prob{display:grid; grid-template-columns:150px 1fr 62px; gap:12px; align-items:center}
+@media (max-width:520px){.prob{grid-template-columns:1fr 58px}.prob__name{grid-column:1/-1; margin-bottom:-8px}}
+.prob__name{font-size:.9rem; font-weight:600; color:var(--ink-2); line-height:1.25}
+.prob__name small{display:block; font-weight:600; font-size:.72rem; color:var(--accent); letter-spacing:.04em}
+.prob__track{position:relative; height:22px; border-radius:6px; background:var(--surface-2)}
+.prob__fill{position:absolute; left:0; top:0; bottom:0; border-radius:4px; background:var(--primary); transition:width .25s ease}
+.prob__hard{position:absolute; inset:-3px auto -3px 0; width:100%; border:1.5px solid var(--ink-3); border-radius:7px; pointer-events:none}
+.prob__val{font-size:.95rem; font-weight:700; text-align:right; font-variant-numeric:tabular-nums}
+.legend{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:.8rem; color:var(--ink-3); margin-top:6px}
+.legend span{display:inline-flex; align-items:center; gap:7px}
+.legend i{display:inline-block; width:16px; height:10px; border-radius:3px; background:var(--primary)}
+.legend i.o{background:transparent; border:1.5px solid var(--ink-3)}
+.lab__msg{margin:18px 0 0; padding:12px 16px; border-radius:12px; background:var(--primary-soft); color:var(--ink); font-size:.92rem; min-height:3.6em}
+
+.loss{display:grid; grid-template-columns:auto 1fr; gap:26px; align-items:center; padding:24px 28px; margin-top:18px}
+@media (max-width:760px){.loss{grid-template-columns:1fr}}
+.loss__eq{font-family:var(--mono); font-size:clamp(1.05rem,2.4vw,1.35rem); white-space:nowrap; color:var(--ink)}
+.loss__eq .a{color:var(--accent); font-weight:600}
+.loss dl{margin:0; display:grid; gap:8px; font-size:.92rem}
+.loss dl div{display:grid; grid-template-columns:86px 1fr; gap:10px}
+.loss dt{font-family:var(--mono); font-weight:600; color:var(--accent)}
+.loss dd{margin:0; color:var(--ink-2)}
+
+.taxo{display:grid; grid-template-columns:1fr 1fr; gap:28px}
+@media (max-width:860px){.taxo{grid-template-columns:1fr}}
+.kinds{display:grid; gap:12px}
+.kind{display:grid; grid-template-columns:64px 1fr; gap:16px; align-items:center; padding:16px 18px}
+.kind svg{width:64px; height:44px; color:var(--primary)}
+.kind h3{font-size:1rem; margin:0 0 2px}
+.kind p{margin:0; font-size:.88rem; color:var(--ink-3); line-height:1.5}
+
+.med{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px}
+@media (max-width:900px){.med{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:480px){.med{grid-template-columns:1fr}}
+.med .card{padding:18px}
+.med h3{font-size:.98rem; margin-bottom:6px}
+.med p{margin:0; font-size:.88rem; color:var(--ink-3); line-height:1.5}
+.apps{display:grid; gap:10px}
+.app{display:grid; grid-template-columns:230px 1fr; gap:18px; padding:16px 20px; align-items:center}
+@media (max-width:700px){.app{grid-template-columns:1fr; gap:4px}}
+.app h3{margin:0; font-size:.98rem; color:var(--primary)}
+.app p{margin:0; font-size:.92rem; color:var(--ink-2)}
+
+/* ---------- 05 · Prática ---------- */
+.dataset{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:30px; padding:26px; align-items:center; margin-bottom:28px}
+@media (max-width:860px){.dataset{grid-template-columns:1fr}}
+.dataset p{font-size:.95rem; color:var(--ink-2)}
+.xrays{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:0}
+.xrays figure{margin:0; position:relative}
+.xrays img{width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; background:#000}
+.xrays figcaption{position:absolute; left:5px; bottom:5px; font-size:.62rem; font-weight:700; letter-spacing:.04em; padding:2px 6px; border-radius:5px;
+  background:#000000a6; color:#fff}
+.xrays figcaption.p{background:#b4532ee6}
+@media (max-width:420px){.xrays{grid-template-columns:repeat(4,1fr)}.xrays figure:nth-child(n+9){display:none}}
+
+.steps{display:grid; gap:14px}
+.step{display:grid; grid-template-columns:52px minmax(0,1fr); gap:20px; padding:22px 24px; align-items:start}
+.step__n{display:grid; place-items:center; width:46px; height:46px; border-radius:13px;
+  background:linear-gradient(140deg,#0e5a61,#1d8a92 55%,#e0835c); color:#fff; font-weight:800; font-size:1.05rem}
+.step h3{margin:0 0 4px; font-size:1.08rem}
+.step p{margin:0 0 6px; font-size:.95rem; color:var(--ink-2)}
+.step ul{margin:6px 0 0; padding-left:1.1rem; font-size:.93rem; color:var(--ink-2)}
+.step li{margin-bottom:.25rem}
+.kv{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+.kv span{font-size:.8rem; font-weight:600; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:3px 10px}
+.kv b{color:var(--ink)}
+@media (max-width:560px){.step{grid-template-columns:minmax(0,1fr); gap:12px; padding:20px}}
+pre.code{margin:14px 0 0; padding:16px 18px; border-radius:12px; background:#0c2226; color:#d9e7e6; font-size:.84rem; line-height:1.6; overflow-x:auto}
+pre.code .k{color:#f2a17c} pre.code .f{color:#8fd3d8} pre.code .n{color:#ffd28a} pre.code .s{color:#b9e4a1} pre.code .c{color:#7f9a9b} pre.code .o{color:#9fb8b9}
+
+.results{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:22px; margin-top:28px}
+@media (max-width:900px){.results{grid-template-columns:1fr}}
+.chart{margin:0; padding:24px 26px 20px}
+.chart figcaption{font-weight:700; margin-bottom:4px}
+.chart .sub{font-size:.86rem; color:var(--ink-3); margin:0 0 20px}
+.bars{display:grid; gap:12px}
+.bar{position:relative; display:grid; grid-template-columns:150px 1fr 56px; gap:12px; align-items:center; border-radius:8px; outline:none}
+@media (max-width:520px){.bar{grid-template-columns:1fr 52px}.bar__label{grid-column:1/-1; margin-bottom:-6px}}
+.bar__label{font-size:.9rem; font-weight:600; line-height:1.25; color:var(--ink-2)}
+.bar__label small{display:block; font-weight:500; color:var(--ink-3); font-size:.76rem}
+.bar__track{position:relative; height:24px}
+.bar__fill{position:absolute; left:0; top:0; bottom:0; width:calc(var(--v) * 1%); border-radius:0 4px 4px 0; background:var(--bar-neutral)}
+.bar--hl .bar__fill{background:var(--accent)}
+.bar--ref .bar__fill{background:var(--primary)}
+.bar__val{font-weight:700; font-size:.95rem; text-align:right; font-variant-numeric:tabular-nums}
+.bar[data-tip]:hover::after, .bar[data-tip]:focus-visible::after{
+  content:attr(data-tip); position:absolute; z-index:2; right:0; bottom:calc(100% + 6px); white-space:nowrap;
+  background:var(--ink); color:var(--bg); font-size:.78rem; font-weight:600; padding:5px 10px; border-radius:8px; box-shadow:var(--shadow)}
+.bar:focus-visible{box-shadow:0 0 0 2px var(--primary)}
+.axis{display:grid; grid-template-columns:150px 1fr 56px; gap:12px; margin-top:8px}
+.axis div{display:flex; justify-content:space-between; font-size:.72rem; color:var(--ink-3); border-top:1px solid var(--line); padding-top:4px; font-variant-numeric:tabular-nums}
+@media (max-width:520px){.axis{grid-template-columns:1fr 52px}.axis > span:first-child{display:none}}
+.stats{display:grid; gap:14px; align-content:start}
+.stat{padding:20px 22px}
+.stat__v{font-size:2.2rem; font-weight:800; letter-spacing:-.02em; line-height:1.05; color:var(--ink)}
+.stat__v.acc{color:var(--accent)}
+.stat p{margin:6px 0 0; font-size:.9rem; color:var(--ink-3); line-height:1.45}
+details.more{margin-top:18px; padding:16px 22px}
+details.more summary{cursor:pointer; font-weight:700; color:var(--primary); list-style:none; display:flex; align-items:center; gap:8px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"\25B8"; display:inline-block; transition:transform .15s ease}
+details.more[open] summary::before{transform:rotate(90deg)}
+.cms{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin:18px 0 8px}
+@media (max-width:860px){.cms{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){.cms{grid-template-columns:1fr}}
+.cm h5{margin:0 0 8px; font-size:.86rem}
+.cm__grid{display:grid; grid-template-columns:auto 1fr 1fr; gap:3px; font-size:.78rem}
+.cm__grid > span{color:var(--ink-3); font-size:.7rem; display:flex; align-items:center; justify-content:center; padding:2px 4px}
+.cm__grid > b{display:grid; place-items:center; height:46px; border-radius:6px; font-variant-numeric:tabular-nums;
+  background:color-mix(in srgb, var(--primary) calc(var(--w) * 1%), var(--surface-2)); color:var(--ink)}
+.cm__grid > b.dk{color:#fff}
+@media (prefers-color-scheme: dark){.cm__grid > b.dk{color:#0f1416}}
+table.tbl{width:100%; border-collapse:collapse; font-size:.88rem; margin-top:10px}
+.tbl th,.tbl td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{font-size:.74rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
+.tbl-wrap{overflow-x:auto}
+.insight{margin:14px 0 0; font-size:.92rem; color:var(--ink-2)}
+
+/* ---------- 06 · Slides e scripts ---------- */
+#slides-scripts{background:linear-gradient(180deg, var(--accent-soft), transparent 85%)}
+.dl-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px}
+@media (max-width:820px){.dl-grid{grid-template-columns:minmax(0,1fr)}}
+.dl{display:flex; flex-direction:column; padding:28px 30px; border-radius:22px;
+  background:var(--surface); border:2px dashed color-mix(in srgb, var(--accent) 55%, transparent); box-shadow:var(--shadow)}
+.dl.is-ready{border-style:solid; border-color:var(--accent)}
+@media (max-width:520px){.dl{padding:24px 20px}}
+.dl__top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+.dl__ico{display:grid; place-items:center; width:64px; height:64px; border-radius:18px; font-size:1.8rem;
+  background:linear-gradient(140deg,#0e5a61,#1d8a92 55%,#e0835c)}
+.dl h3{font-size:1.3rem; margin:0 0 6px}
+.dl p{margin:0 0 12px; color:var(--ink-2); font-size:.97rem}
+.dl ul{margin:0 0 24px; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px 16px; font-size:.9rem; color:var(--ink-2)}
+.dl ul li::before{content:"› "; color:var(--accent); font-weight:800}
+.badge{display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; font-size:.78rem; font-weight:700;
+  background:var(--accent-soft); color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent)}
+.badge--ok{background:var(--primary-soft); color:var(--primary); border-color:color-mix(in srgb, var(--primary) 30%, transparent)}
+.btn-dl{margin-top:auto; align-self:flex-start; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 24px; border-radius:14px; font-weight:800; font-size:1rem;
+  text-decoration:none; white-space:nowrap; background:var(--accent); color:#fff; transition:transform .12s ease, filter .12s ease}
+@media (prefers-color-scheme: dark){.btn-dl{color:#24120a}}
+.btn-dl:hover{transform:translateY(-1px); filter:brightness(1.06)}
+.btn-dl[aria-disabled="true"]{background:var(--surface-2); color:var(--ink-3); border:1px solid var(--line); cursor:default; transform:none; filter:none}
+
+/* ---------- 07 · Materiais ---------- */
+.mat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px}
+.mat{display:block; padding:22px; text-decoration:none; color:inherit; transition:.14s ease}
+.mat:hover{transform:translateY(-2px); border-color:var(--accent)}
+.mat .ico{font-size:1.5rem; display:block; margin-bottom:10px; line-height:1}
+.mat h3{margin-bottom:4px; font-size:1.02rem}
+.mat h3::after{content:" ↗"; color:var(--accent); font-weight:600}
+.mat p{margin:0; font-size:.9rem; color:var(--ink-3); line-height:1.5}
+
+/* ---------- 08 · Referências ---------- */
+ol.refs{margin:0; padding-left:1.3rem; font-size:.92rem; color:var(--ink-2); max-width:90ch}
+ol.refs li{margin-bottom:.85rem; padding-left:.3rem}
+ol.refs a{word-break:break-word}
+
+/* ---------- Rodapé ---------- */
+footer{padding:48px 0 56px; font-size:.9rem; color:var(--ink-3)}
+footer h3{color:var(--ink)}
+.contacts{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px 28px}
+.contacts li{display:flex; flex-direction:column}
+.contacts strong{color:var(--ink-2); font-weight:700}
+footer a{color:var(--ink-2)}
+.logos{margin-top:34px; padding:20px 24px; border-radius:var(--radius); background:#ffffff; border:1px solid var(--line);
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:18px 28px}
+.logos__group{display:flex; flex-wrap:wrap; align-items:center; gap:14px 26px}
+.logos__group span{font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:#8a827b; width:100%}
+.logos img{height:36px; width:auto; max-width:150px; object-fit:contain}
+.logos img.sm{height:30px}
+.fine{margin-top:26px; padding-top:20px; border-top:1px solid var(--line); font-size:.84rem}
+</style>
+</head>
+<body>
+
+<!-- Faixa de aviso (o texto muda sozinho conforme SLIDES_URL e SCRIPTS_URL são preenchidos) -->
+<div class="topbar">
+  <div class="wrap topbar__inner">
+    <span id="topbarMsg">📦 Os <strong>slides</strong> e os <strong>scripts</strong> do curso serão disponibilizados nesta página em breve.</span>
+    <a href="#slides-scripts">Ver slides e scripts →</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero__bg" aria-hidden="true"></div>
+  <div class="hero__veil" aria-hidden="true"></div>
+  <div class="wrap hero__inner">
+    <div>
+      <span class="eyebrow">X Escola Avançada de Big Data Analysis &middot; ICMC/USP</span>
+      <h1>Uma introdução prática a <span class="hl">Knowledge Distillation</span> em Imagens Médicas</h1>
+      <p class="lead">
+        Como ensinar um modelo pequeno a imitar um modelo grande, e por que isso importa para levar
+        inteligência artificial ao diagnóstico por imagem. Teoria e prática em Python, classificando
+        pneumonia em radiografias de tórax.
+      </p>
+      <ul class="when">
+        <li>📅 Seg., 05/10/2026</li>
+        <li>🕑 14h às 18h</li>
+        <li>💻 Online, ao vivo</li>
+        <li>🎓 Gratuito, com certificado USP</li>
+      </ul>
+      <div class="people">
+        <div class="people__faces" aria-hidden="true">
+          <img src="img/graciella.jpg" alt="">
+          <img src="img/mariana.jpg" alt="">
+          <img src="img/mirela.jpg" alt="">
+        </div>
+        <p>Com as doutorandas <strong>Graciella Favoreto</strong> e <strong>Mariana Suzuki</strong>
+          e a profa. <strong>Mirela Cazzolato</strong>, do GBdI · ICMC/USP.</p>
+      </div>
+      <div class="cta">
+        <a class="btn btn--solid" href="#slides-scripts">📦 Slides e scripts</a>
+        <a class="btn btn--ghost" href="#ministrantes">Conheça as ministrantes</a>
+      </div>
+    </div>
+
+    <aside class="distill" aria-label="Comparação de tamanho entre o modelo professor e o modelo aprendiz usados no curso">
+      <p class="distill__title">O que vamos destilar</p>
+      <div class="distill__row">
+        <figure class="mdl mdl--teacher">
+          <div class="mdl__sq" style="--s:var(--big)"></div>
+          <figcaption><b>Professor</b>ResNet18<span class="n">11.171.266 parâmetros</span></figcaption>
+        </figure>
+        <div class="flow" aria-hidden="true">
+          <small>destilação</small>
+          <div class="flow__line"><span class="flow__dot"></span><span class="flow__dot"></span><span class="flow__dot"></span></div>
+        </div>
+        <figure class="mdl mdl--student">
+          <div class="mdl__stage"><div class="mdl__sq" style="--s:calc(var(--big) * 0.0458)"></div></div>
+          <figcaption><b>Aprendiz</b>SmallCNN<span class="n">23.426 parâmetros</span></figcaption>
+        </figure>
+      </div>
+      <p class="distill__big">≈ 477× <span>menos parâmetros no aprendiz</span></p>
+      <p class="distill__note">Área de cada quadrado proporcional ao número de parâmetros do modelo.</p>
+    </aside>
+  </div>
+</header>
+
+<nav aria-label="Seções da página">
+  <div class="wrap">
+    <ul>
+      <li><a href="#curso">O curso</a></li>
+      <li><a href="#ministrantes">Ministrantes</a></li>
+      <li><a href="#programa">Programa</a></li>
+      <li><a href="#conceitos">Conceitos</a></li>
+      <li><a href="#pratica">Prática</a></li>
+      <li><a href="#slides-scripts" class="nav-dl">📦 Slides e scripts</a></li>
+      <li><a href="#materiais">Materiais</a></li>
+      <li><a href="#referencias">Referências</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============================ 01 · O CURSO ============================ -->
+<section id="curso">
+  <div class="wrap">
+    <h2><span class="num">01</span>O curso</h2>
+    <p class="section-sub">
+      Conceitos fundamentais de <em>Knowledge Distillation</em> (KD), com exposição teórica e prática dos modelos,
+      sua aplicabilidade e a importância do KD no domínio médico e na classificação de imagens. Na parte prática,
+      construímos um <em>pipeline</em> básico com bibliotecas Python abertas.
+    </p>
+
+    <div class="question">
+      <small>A pergunta que guia o curso</small>
+      <p>Como manter o desempenho de classificação e reduzir o custo computacional de um modelo para detecção de pneumonia?</p>
+    </div>
+
+    <div class="motiv">
+      <article class="card">
+        <span class="ico" aria-hidden="true">🫁</span>
+        <h3>Pneumonia</h3>
+        <ul><li>Diagnóstico complexo</li><li>Sintomas semelhantes aos de outras condições</li></ul>
+      </article>
+      <article class="card">
+        <span class="ico" aria-hidden="true">🩺</span>
+        <h3>Diagnóstico manual</h3>
+        <ul><li>Desgaste do profissional</li><li>Suscetível a erros</li></ul>
+      </article>
+      <article class="card">
+        <span class="ico" aria-hidden="true">🧠</span>
+        <h3>Modelos de <em>deep learning</em></h3>
+        <ul><li>Grande escala e complexidade</li><li>Difíceis de implantar na prática clínica</li></ul>
+      </article>
+    </div>
+
+    <div class="cols">
+      <div>
+        <h4>Ao final do curso, você vai</h4>
+        <ul class="outcomes">
+          <li>compreender os princípios básicos de um <em>pipeline</em> de processamento de imagens, incluindo o pré-processamento;</li>
+          <li>compreender os conceitos gerais de <em>Knowledge Distillation</em>;</li>
+          <li>entender o uso da <em>distillation loss</em> clássica;</li>
+          <li>entender a importância do KD para imagens médicas e os problemas associados;</li>
+          <li>implementar um <em>pipeline</em> básico de KD sobre bases públicas de imagens médicas;</li>
+          <li>reconhecer limitações e desafios práticos em aplicações com bases de dados reais.</li>
+        </ul>
+      </div>
+      <dl class="meta-grid">
+        <div class="meta card"><dt>Quando</dt><dd>Segunda, 05/10/2026<span>14h às 18h, com intervalo de 15 min</span></dd></div>
+        <div class="meta card"><dt>Formato</dt><dd>Online, ao vivo<span>Teoria + prática guiada em Python</span></dd></div>
+        <div class="meta card"><dt>Evento</dt><dd>X EABDA<span>Escola Avançada de Big Data Analysis do ICMC/USP</span></dd></div>
+        <div class="meta card"><dt>Ferramentas</dt><dd>PyTorch ≥ 2.0 · MedMNIST<span>GPU com 4 GB de memória</span></dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 02 · MINISTRANTES ============================ -->
+<section id="ministrantes">
+  <div class="wrap">
+    <h2><span class="num">02</span>Ministrantes</h2>
+    <p class="section-sub">
+      O curso é ministrado por três pesquisadoras do <strong>GBdI (Grupo de Bases de Dados e Imagens)</strong> do ICMC/USP:
+      as doutorandas Graciella Favoreto e Mariana Suzuki, que pesquisam inteligência artificial aplicada a imagens médicas,
+      e a professora Mirela Cazzolato.
+    </p>
+
+    <div class="team">
+      <!-- Graciella -->
+      <article class="person card">
+        <div class="person__head">
+          <div class="person__photo"><img src="img/graciella.jpg" alt="Foto de Graciella Favoreto"></div>
+          <div>
+            <span class="person__role">Doutoranda · ICMC/USP</span>
+            <h3>Graciella Favoreto</h3>
+            <p class="person__aff">GBdI (ICMC/USP) · MAInLab (FMRP/USP)</p>
+          </div>
+        </div>
+        <span class="highlight">🔬 <span>Pesquisa <em>knowledge distillation</em> no doutorado</span></span>
+        <p class="person__lead">
+          Atua em IA aplicada à saúde, com ênfase em visão computacional para análise de imagens médicas e
+          métodos de aprendizado profundo para apoio ao diagnóstico.
+        </p>
+        <ul class="clean">
+          <li>Doutoranda em Ciências de Computação e Matemática Computacional no ICMC/USP; graduada em Informática Biomédica pela FMRP/USP.</li>
+          <li>Integra o projeto temático IHealth-MD e é membro do GBdI (ICMC/USP) e do <em>Medical Artificial Intelligence Laboratory</em> (MAInLab, FMRP/USP).</li>
+          <li>Desenvolve técnicas de <em>knowledge distillation</em> para construir modelos mais eficientes e escaláveis.</li>
+        </ul>
+        <ul class="chips" aria-label="Temas de pesquisa">
+          <li>Knowledge distillation</li><li>Segmentação</li><li>Classificação</li><li>Multimodalidade</li><li>Interpretabilidade</li>
+        </ul>
+        <p class="person__mail">✉️ <a href="mailto:graciellafavoreto@usp.br">graciellafavoreto@usp.br</a></p>
+      </article>
+
+      <!-- Mariana -->
+      <article class="person card">
+        <div class="person__head">
+          <div class="person__photo"><img src="img/mariana.jpg" alt="Foto de Mariana Suzuki"></div>
+          <div>
+            <span class="person__role">Doutoranda · ICMC/USP</span>
+            <h3>Mariana Suzuki</h3>
+            <p class="person__aff">GBdI (ICMC/USP) · Projeto IHealth</p>
+          </div>
+        </div>
+        <span class="highlight">🏆 <span>Best Student Paper Award no IEEE CBMS 2025</span></span>
+        <p class="person__lead">
+          Atua com imagens médicas, extração de características de imagens, inteligência artificial e visão computacional.
+        </p>
+        <ul class="clean">
+          <li>Doutoranda em Ciências de Computação e Matemática Computacional no ICMC/USP; mestra pelo ICMC/USP e bacharel em Informática Biomédica pela FMRP/USP.</li>
+          <li>No mestrado, propôs um <em>framework</em> para apoiar o treinamento de modelos de segmentação automatizada de imagens médicas, com aumento e redução de dados e imagens reais e sintéticas.</li>
+          <li>Na graduação, trabalhou com segmentação automatizada de corpos vertebrais.</li>
+        </ul>
+        <ul class="chips" aria-label="Temas de pesquisa">
+          <li>Imagens médicas</li><li>Segmentação</li><li>Extração de características</li><li>Dados sintéticos</li><li>Visão computacional</li>
+        </ul>
+        <p class="person__mail">✉️ <a href="mailto:mariaya25@usp.br">mariaya25@usp.br</a></p>
+      </article>
+    </div>
+
+    <!-- Mirela -->
+    <article class="person person--wide card">
+      <div>
+        <div class="person__head">
+          <div class="person__photo"><img src="img/mirela.jpg" alt="Foto de Mirela Cazzolato"></div>
+          <div>
+            <span class="person__role">Professora · ICMC/USP</span>
+            <h3>Mirela Cazzolato</h3>
+            <p class="person__aff">GBdI (ICMC/USP) · MBA em IA e Big Data</p>
+          </div>
+        </div>
+        <span class="highlight">🌎 <span>Pós-doutorado na Carnegie Mellon University (EUA)</span></span>
+        <p class="person__lead">
+          Pesquisa mineração e análise de dados complexos, como imagens e grafos, com aprendizado de máquina,
+          detecção de anomalias e visualização.
+        </p>
+      </div>
+      <div>
+        <ul class="clean">
+          <li>Professora Assistente no ICMC/USP e membro do GBdI; professora convidada e supervisora acadêmica do MBA em Inteligência Artificial e Big Data do ICMC.</li>
+          <li>Doutora em Ciências de Computação e Matemática Computacional pelo ICMC/USP, com estágio no Instituto de Tecnologia de Karlsruhe (KIT, Alemanha).</li>
+          <li>Pós-doutorado pelo InCor, no projeto temático MIVisBD (FAPESP), e estágio BEPE de pós-doutorado na Carnegie Mellon University (CMU, EUA).</li>
+          <li>Foi Professora Assistente no Departamento de Computação e Matemática da FFCLRP/USP.</li>
+        </ul>
+        <ul class="chips" aria-label="Temas de pesquisa">
+          <li>Mineração de grafos</li><li>Detecção de anomalias</li><li>Dados complexos</li><li>Análise e mineração de imagens</li><li>Aprendizado de máquina</li><li>Visualização</li>
+        </ul>
+        <p class="person__mail">✉️ <a href="mailto:mirela@icmc.usp.br">mirela@icmc.usp.br</a></p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================ 03 · PROGRAMA ============================ -->
+<section id="programa">
+  <div class="wrap">
+    <h2><span class="num">03</span>Programa</h2>
+    <p class="section-sub">Quatro horas, em duas partes: primeiro os fundamentos, depois o código.</p>
+
+    <ol class="timeline">
+      <li>
+        <div class="tl card">
+          <div class="tl__head"><span class="tl__kind">Abertura</span><h3>Introdução</h3></div>
+          <ul><li>Ministrantes, motivação e objetivo do curso</li></ul>
+        </div>
+      </li>
+      <li>
+        <div class="tl card">
+          <div class="tl__head"><span class="tl__kind">Parte 1 · Teoria</span><h3>Fundamentos</h3></div>
+          <ul>
+            <li>Diagnóstico auxiliado por computador: <span>do exame à classificação</span></li>
+            <li>Redes neurais profundas: <span>convolução, <em>pooling</em> e camada totalmente conectada</span></li>
+            <li><em>Knowledge Distillation</em> <span>e o <em>framework</em> professor-aprendiz</span></li>
+            <li>Tipos de conhecimento e tipos de destilação</li>
+            <li>KD em imagens médicas</li>
+          </ul>
+        </div>
+      </li>
+      <li class="is-break">
+        <div class="tl card tl--break">☕ Intervalo · 15 minutos</div>
+      </li>
+      <li class="is-practice">
+        <div class="tl card">
+          <div class="tl__head"><span class="tl__kind">Parte 2 · Prática</span><h3>Mão na massa em PyTorch</h3></div>
+          <ul>
+            <li>Pré-requisitos e conjunto de dados</li>
+            <li>Modelo Professor e Modelo Aprendiz</li>
+            <li>Destilação de conhecimento</li>
+            <li>Avaliação e comparação dos modelos</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <div class="tl card">
+          <div class="tl__head"><span class="tl__kind">Fechamento</span><h3>Conclusões</h3></div>
+          <ul><li>O que aprendemos, limitações e próximos passos</li></ul>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 04 · CONCEITOS ============================ -->
+<section id="conceitos">
+  <div class="wrap">
+    <h2><span class="num">04</span>Conceitos-chave</h2>
+    <p class="section-sub">Um aperitivo do que é discutido na parte teórica do curso.</p>
+
+    <!-- Diagnóstico auxiliado por computador -->
+    <div class="block">
+      <h4>Diagnóstico auxiliado por computador</h4>
+      <div class="cad">
+        <div class="card"><h3>Aquisição</h3><p>Radiografia, tomografia computadorizada, ressonância magnética.</p></div>
+        <div class="card"><h3>Pré-processamento</h3><p>Melhorar a qualidade: redução de ruído, aumento de contraste.</p></div>
+        <div class="card"><h3>Anotação</h3><p>Regiões de interesse e suas características: forma, textura, bordas.</p></div>
+        <div class="card"><h3>Algoritmos</h3><p>Aprender padrões associados a diferentes condições médicas.</p></div>
+        <div class="card"><h3>Classificação</h3><p>Classificar regiões de interesse e oferecer uma segunda opinião.</p></div>
+      </div>
+      <p class="note">
+        Hoje, a etapa de algoritmos é dominada por redes neurais profundas. Arquiteturas como
+        <span class="archs"><code>AlexNet</code><code>VGG16</code><code>ResNet18</code><code>InceptionV3</code></span>
+        são de grande porte e consomem muitos recursos computacionais e de memória, o que dificulta levá-las a hospitais e aparelhos portáteis.
+      </p>
+    </div>
+
+    <!-- O que é KD -->
+    <div class="block">
+      <h4>O que é Knowledge Distillation</h4>
+      <div class="kd-def">
+        <div>
+          <p class="big">
+            Uma técnica para <em>transferir o que um grande modelo pré-treinado aprendeu</em> para um modelo menor.
+            O objetivo é treinar um modelo compacto, o <strong>aprendiz</strong>, para imitar um modelo maior e mais complexo, o <strong>professor</strong>.
+          </p>
+          <blockquote>
+            Em muitos cenários do mundo real, precisão e capacidade não bastam para tornar um modelo útil:
+            ele também precisa caber no orçamento de tempo, memória, dinheiro e recursos computacionais.
+          </blockquote>
+        </div>
+        <div class="system card">
+          <span class="system__root">Sistema de destilação de conhecimento</span>
+          <div class="system__kids">
+            <div>Conhecimento<small>o que é transferido</small></div>
+            <div>Algoritmo de destilação<small>como é transferido</small></div>
+            <div>Arquitetura professor-aprendiz<small>entre quem</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Laboratório de temperatura -->
+    <div class="block">
+      <h4>Soft-targets e temperatura</h4>
+      <div class="lab card">
+        <div>
+          <span class="tag">Experimente</span>
+          <h3>O efeito da temperatura</h3>
+          <p>
+            O professor não passa só a resposta final (o <em>hard-target</em>): ele passa uma distribuição de probabilidades
+            (o <em>soft-target</em>) que revela quais classes ele acha parecidas. A <strong>temperatura T</strong> controla o quanto
+            essa distribuição é suavizada. Arraste e veja.
+          </p>
+          <div class="lab__t">
+            <label for="temp">Temperatura</label>
+            <output id="tOut" for="temp">T = 1</output>
+          </div>
+          <input type="range" id="temp" min="1" max="10" step="0.5" value="1" aria-describedby="labMsg">
+          <div class="scale" aria-hidden="true"><span style="left:0">1</span><span style="left:33.333%"><b>▲ 4 · usado no curso</b></span><span style="left:100%">10</span></div>
+          <div class="eq" aria-label="p de i igual a exp de z i sobre T, dividido pela soma em j de exp de z j sobre T">
+            <span>p<sub>i</sub> =</span>
+            <span class="frac"><span>exp(z<sub>i</sub> / T)</span><span>Σ<sub>j</sub> exp(z<sub>j</sub> / T)</span></span>
+            <small>Softmax com temperatura: z são os <em>logits</em>, as saídas da última camada do modelo.</small>
+          </div>
+        </div>
+        <div>
+          <div class="probs" id="probs"></div>
+          <div class="legend">
+            <span><i></i>soft-target do professor</span>
+            <span><i class="o"></i>hard-target (rótulo verdadeiro)</span>
+          </div>
+          <p class="lab__msg" id="labMsg" aria-live="polite"></p>
+          <p style="margin:8px 0 0; font-size:.78rem; color:var(--ink-3)">Exemplo ilustrativo, com <em>logits</em> fictícios.</p>
+        </div>
+      </div>
+
+      <div class="loss card">
+        <div class="loss__eq">L<sub>target</sub> = <span class="a">α</span>·L<sub>soft</sub> + <span class="a">β</span>·L<sub>hard</sub></div>
+        <dl>
+          <div><dt>L_soft</dt><dd>perda do <em>soft-target</em>: o aprendiz imita a distribuição suavizada do professor.</dd></div>
+          <div><dt>L_hard</dt><dd>perda do <em>hard-target</em>: o aprendiz continua aprendendo o rótulo verdadeiro.</dd></div>
+          <div><dt>α, β</dt><dd>coeficientes que controlam a proporção de cada tipo de target.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Taxonomia -->
+    <div class="block">
+      <div class="taxo">
+        <div>
+          <h4>Tipos de conhecimento</h4>
+          <div class="kinds">
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" aria-hidden="true"><rect x="8" y="6" width="12" height="34" rx="2" fill="currentColor"/><rect x="26" y="20" width="12" height="20" rx="2" fill="currentColor" opacity=".55"/><rect x="44" y="30" width="12" height="10" rx="2" fill="currentColor" opacity=".3"/></svg>
+              <div><h3>Baseado em respostas</h3><p>O aprendiz reproduz diretamente a predição final (os <em>logits</em>) do professor.</p></div>
+            </div>
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="14" height="13" rx="3"/><rect x="25" y="3" width="14" height="13" rx="3"/><rect x="46" y="3" width="14" height="13" rx="3"/><rect x="7" y="29" width="9" height="11" rx="3"/><rect x="27.5" y="29" width="9" height="11" rx="3"/><rect x="48" y="29" width="9" height="11" rx="3"/><path d="M32 18v9" stroke-width="2.5" opacity=".55"/></svg>
+              <div><h3>Baseado em características</h3><p>O aprendiz busca aprender as representações internas das camadas profundas do professor.</p></div>
+            </div>
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 12 30 8 52 16 40 36 16 34Z M30 8 40 36 M10 12 52 16" opacity=".5"/><g fill="currentColor" stroke="none"><circle cx="10" cy="12" r="4"/><circle cx="30" cy="8" r="4"/><circle cx="52" cy="16" r="4"/><circle cx="40" cy="36" r="4"/><circle cx="16" cy="34" r="4"/></g></svg>
+              <div><h3>Baseado em relações</h3><p>Transfere a similaridade entre camadas, características ou amostras.</p></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4>Tipos de destilação</h4>
+          <div class="kinds">
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" aria-hidden="true"><rect x="2" y="12" width="22" height="20" rx="5" fill="currentColor"/><rect x="41" y="14" width="18" height="16" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M27 22h10" stroke="currentColor" stroke-width="2"/><path d="M35 18l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <div><h3>Offline</h3><p>A abordagem tradicional, em dois estágios: o professor é treinado antes e depois guia o aprendiz. É a usada no curso.</p></div>
+            </div>
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="12" width="22" height="20" rx="5"/><rect x="41" y="14" width="18" height="16" rx="5"/><path d="M27 18h10M34 15l3 3-3 3M37 26H27M30 23l-3 3 3 3"/></svg>
+              <div><h3>Online</h3><p>Professor e aprendiz são atualizados simultaneamente, num <em>framework</em> treinável de ponta a ponta.</p></div>
+            </div>
+            <div class="kind card">
+              <svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="10" y="16" width="30" height="22" rx="6"/><path d="M40 27h10V6H25v8"/><path d="M21.5 11l3.5 4 3.5-4"/></svg>
+              <div><h3>Autodestilação</h3><p>A mesma rede é professor e aprendiz: o conhecimento das camadas profundas é destilado para as mais superficiais.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KD em imagens médicas -->
+    <div class="block">
+      <h4>KD em imagens médicas: o que muda</h4>
+      <div class="med">
+        <div class="card"><h3>Dados disponíveis</h3><p>Poucos dados médicos, anotação custosa e maior risco de <em>overfitting</em>.</p></div>
+        <div class="card"><h3>Tipos de conhecimento</h3><p>Características complexas de órgãos, tecidos e lesões.</p></div>
+        <div class="card"><h3>Generalização</h3><p>Conhecimento específico, que pode não valer para múltiplas patologias.</p></div>
+        <div class="card"><h3>Interpretabilidade</h3><p>Entender “o quê” e “de onde” vem o conhecimento do aprendiz.</p></div>
+      </div>
+      <div class="apps">
+        <div class="app card"><h3>Compressão de modelo</h3><p>O aprendiz, menor, pode ser implantado em aparelhos portáteis e em hospitais.</p></div>
+        <div class="app card"><h3>Compensar modalidades faltantes</h3><p>O professor aprende uma representação comum a várias modalidades; o aprendiz simula a ausência de modalidades na prática clínica.</p></div>
+        <div class="app card"><h3>Interpretabilidade</h3><p>O aprendizado iterativo evidencia o local das lesões, e o professor simula o processo de diagnóstico feito por profissionais de saúde.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 05 · PRÁTICA ============================ -->
+<section id="pratica">
+  <div class="wrap">
+    <h2><span class="num">05</span>Prática: KD para detectar pneumonia</h2>
+    <p class="section-sub">
+      Na segunda parte, montamos passo a passo um <em>pipeline</em> de destilação em PyTorch: um professor grande e já
+      treinado ensina uma rede minúscula a classificar radiografias de tórax como <strong>normal</strong> ou <strong>pneumonia</strong>.
+    </p>
+
+    <div class="dataset card">
+      <div>
+        <span class="tag">Conjunto de dados</span>
+        <h3>PneumoniaMNIST · MedMNIST</h3>
+        <p>
+          Radiografias de tórax padronizadas, da coleção aberta <a href="https://medmnist.com/" rel="noopener">MedMNIST</a>,
+          rotuladas em duas classes. É uma base pública, leve e pronta para uso, ideal para experimentar KD em pouco tempo.
+        </p>
+      </div>
+      <div class="xrays" role="group" aria-label="Exemplos de radiografias do conjunto, com seus rótulos">
+        <figure><img src="img/xray-01-normal.jpg" alt="Radiografia de tórax rotulada como normal" loading="lazy"><figcaption>Normal</figcaption></figure>
+        <figure><img src="img/xray-03-pneumonia.jpg" alt="Radiografia de tórax rotulada como pneumonia" loading="lazy"><figcaption class="p">Pneumonia</figcaption></figure>
+        <figure><img src="img/xray-02-normal.jpg" alt="Radiografia de tórax rotulada como normal" loading="lazy"><figcaption>Normal</figcaption></figure>
+        <figure><img src="img/xray-04-pneumonia.jpg" alt="Radiografia de tórax rotulada como pneumonia" loading="lazy"><figcaption class="p">Pneumonia</figcaption></figure>
+        <figure><img src="img/xray-05-normal.jpg" alt="Radiografia de tórax rotulada como normal" loading="lazy"><figcaption>Normal</figcaption></figure>
+        <figure><img src="img/xray-06-pneumonia.jpg" alt="Radiografia de tórax rotulada como pneumonia" loading="lazy"><figcaption class="p">Pneumonia</figcaption></figure>
+        <figure><img src="img/xray-07-normal.jpg" alt="Radiografia de tórax rotulada como normal" loading="lazy"><figcaption>Normal</figcaption></figure>
+        <figure><img src="img/xray-08-pneumonia.jpg" alt="Radiografia de tórax rotulada como pneumonia" loading="lazy"><figcaption class="p">Pneumonia</figcaption></figure>
+        <figure><img src="img/xray-10-normal.jpg" alt="Radiografia de tórax rotulada como normal" loading="lazy"><figcaption>Normal</figcaption></figure>
+        <figure><img src="img/xray-09-pneumonia.jpg" alt="Radiografia de tórax rotulada como pneumonia" loading="lazy"><figcaption class="p">Pneumonia</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="steps">
+      <article class="step card">
+        <div class="step__n">1</div>
+        <div>
+          <h3>Pré-requisitos</h3>
+          <p>O ambiente mínimo para acompanhar a prática.</p>
+          <div class="kv"><span>GPU · <b>4 GB</b> de memória</span><span>PyTorch <b>v2.0+</b></span><span>Conjunto <b>MedMNIST</b></span></div>
+        </div>
+      </article>
+
+      <article class="step card">
+        <div class="step__n">2</div>
+        <div>
+          <h3>Modelo Professor</h3>
+          <p>Uma <strong>ResNet18</strong> com pesos já treinados. É o modelo mais pesado do curso.</p>
+<pre class="code"><code>teacher = <span class="f">build_teacher</span>().<span class="f">to</span>(device)
+<span class="f">print</span>(<span class="s">f"Teacher parameters: </span>{<span class="f">count_parameters</span>(teacher)<span class="o">:,</span>}<span class="s">"</span>)
+<span class="c"># Teacher parameters: 11,171,266</span></code></pre>
+        </div>
+      </article>
+
+      <article class="step card">
+        <div class="step__n">3</div>
+        <div>
+          <h3>Modelo Aprendiz</h3>
+          <p>Uma <strong>SmallCNN</strong> treinada <em>sem</em> a ajuda do professor, que serve de <em>baseline</em> para a comparação.</p>
+<pre class="code"><code>student = <span class="f">SmallCNN</span>().<span class="f">to</span>(device)
+<span class="f">print</span>(<span class="s">f"Student parameters: </span>{<span class="f">count_parameters</span>(student)<span class="o">:,</span>}<span class="s">"</span>)
+<span class="c"># Student parameters: 23,426</span></code></pre>
+        </div>
+      </article>
+
+      <article class="step card">
+        <div class="step__n">4</div>
+        <div>
+          <h3>Knowledge Distillation</h3>
+          <p>O professor, já treinado e <strong>congelado</strong>, orienta uma nova SmallCNN combinando <em>soft</em> e <em>hard-targets</em>.</p>
+<pre class="code"><code>student_kd = <span class="f">SmallCNN</span>().<span class="f">to</span>(device)
+
+TEMPERATURE = <span class="n">4.0</span>
+ALPHA = <span class="n">0.5</span>
+EPOCHS = <span class="n">10</span>
+
+optimizer = torch.optim.<span class="f">Adam</span>(student_kd.<span class="f">parameters</span>(), lr=<span class="n">1e-3</span>)
+criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
+        </div>
+      </article>
+
+      <article class="step card">
+        <div class="step__n">5</div>
+        <div>
+          <h3>Avaliação final</h3>
+          <p>Comparamos professor, aprendiz <em>baseline</em> e aprendiz + KD com diferentes temperaturas, usando acurácia e matrizes de confusão.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="results">
+      <figure class="chart card" aria-labelledby="chartTitle">
+        <figcaption id="chartTitle">Acurácia no conjunto de teste</figcaption>
+        <p class="sub">624 radiografias · passe o mouse nas barras para ver os acertos</p>
+        <div class="bars">
+          <div class="bar bar--ref" tabindex="0" data-tip="559 de 624 acertos">
+            <span class="bar__label">Professor<small>ResNet18</small></span>
+            <span class="bar__track"><span class="bar__fill" style="--v:89.6"></span></span>
+            <span class="bar__val">89,6%</span>
+          </div>
+          <div class="bar" tabindex="0" data-tip="507 de 624 acertos">
+            <span class="bar__label">Aprendiz<small>SmallCNN, sem KD</small></span>
+            <span class="bar__track"><span class="bar__fill" style="--v:81.2"></span></span>
+            <span class="bar__val">81,2%</span>
+          </div>
+          <div class="bar bar--hl" tabindex="0" data-tip="529 de 624 acertos">
+            <span class="bar__label">Aprendiz + KD<small>T = 4</small></span>
+            <span class="bar__track"><span class="bar__fill" style="--v:84.8"></span></span>
+            <span class="bar__val">84,8%</span>
+          </div>
+          <div class="bar" tabindex="0" data-tip="522 de 624 acertos">
+            <span class="bar__label">Aprendiz + KD<small>T = 10</small></span>
+            <span class="bar__track"><span class="bar__fill" style="--v:83.7"></span></span>
+            <span class="bar__val">83,7%</span>
+          </div>
+        </div>
+        <div class="axis" aria-hidden="true"><span></span><div><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span></span></div>
+      </figure>
+
+      <div class="stats">
+        <div class="stat card">
+          <div class="stat__v acc">+3,6 p.p.</div>
+          <p>de acurácia para o aprendiz treinado com destilação (T = 4), em relação ao mesmo aprendiz treinado sozinho.</p>
+        </div>
+        <div class="stat card">
+          <div class="stat__v">≈ 43%</div>
+          <p>da distância entre aprendiz e professor recuperada pela destilação, com um modelo cerca de 477 vezes menor.</p>
+        </div>
+      </div>
+    </div>
+
+    <details class="more card">
+      <summary>Ver matrizes de confusão e tabela</summary>
+      <div class="cms" id="cms"></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Modelo</th><th>Parâmetros</th><th>Acurácia</th><th>Falsos positivos</th><th>Falsos negativos</th></tr></thead>
+          <tbody>
+            <tr><td>Professor (ResNet18)</td><td>11.171.266</td><td>89,6%</td><td>56</td><td>9</td></tr>
+            <tr><td>Aprendiz (SmallCNN)</td><td>23.426</td><td>81,2%</td><td>108</td><td>9</td></tr>
+            <tr><td>Aprendiz + KD (T = 4)</td><td>23.426</td><td>84,8%</td><td>80</td><td>15</td></tr>
+            <tr><td>Aprendiz + KD (T = 10)</td><td>23.426</td><td>83,7%</td><td>75</td><td>27</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="insight">
+        Repare no <em>trade-off</em>: a destilação reduz os falsos positivos do aprendiz (108 → 80 com T = 4), mas aumenta
+        os falsos negativos (9 → 15), ou seja, pneumonias que passam despercebidas. Em aplicações clínicas, esse tipo de troca precisa
+        ser avaliado com cuidado, e é um dos desafios práticos discutidos no curso.
+      </p>
+    </details>
+    <p style="margin:14px 0 0; font-size:.84rem; color:var(--ink-3)">
+      Valores da execução de referência apresentada no curso. Ao rodar os scripts, seus números podem variar um pouco.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ 06 · SLIDES E SCRIPTS ============================ -->
+<section id="slides-scripts">
+  <div class="wrap">
+    <h2><span class="num">06</span>Slides e scripts do curso</h2>
+    <p class="section-sub">Todo o material da aula, para revisar a teoria e reproduzir a prática em casa, com seus próprios dados.</p>
+
+    <!-- Os cartões mudam sozinhos quando SLIDES_URL e SCRIPTS_URL (no topo do arquivo) forem preenchidos. -->
+    <div class="dl-grid">
+      <article class="dl" data-kind="slides">
+        <div class="dl__top">
+          <div class="dl__ico" aria-hidden="true">📑</div>
+          <span class="badge" data-soon>⏳ Em breve</span>
+          <span class="badge badge--ok" data-ready hidden>✅ Disponível</span>
+        </div>
+        <h3>Slides da apresentação</h3>
+        <p data-soon>Os slides usados na aula serão publicados aqui. Volte a esta página depois do curso: o link aparecerá neste cartão.</p>
+        <p data-ready hidden>Toda a parte teórica da aula, para revisar com calma.</p>
+        <ul>
+          <li>Diagnóstico auxiliado por computador</li>
+          <li>Redes neurais profundas</li>
+          <li>Knowledge Distillation</li>
+          <li>KD em imagens médicas</li>
+          <li>Prática e resultados</li>
+        </ul>
+        <a class="btn-dl" data-link aria-disabled="true">
+          <span data-soon>Disponível em breve</span>
+          <span data-ready hidden>Abrir os slides ↗</span>
+        </a>
+      </article>
+
+      <article class="dl" data-kind="scripts">
+        <div class="dl__top">
+          <div class="dl__ico" aria-hidden="true">💻</div>
+          <span class="badge" data-soon>⏳ Em breve</span>
+          <span class="badge badge--ok" data-ready hidden>✅ Disponível</span>
+        </div>
+        <h3>Notebooks e scripts da parte prática</h3>
+        <p data-soon>Os scripts serão publicados aqui. Volte a esta página depois do curso: o link aparecerá neste cartão.</p>
+        <p data-ready hidden>Baixe ou abra o código e reproduza cada etapa do <em>pipeline</em>.</p>
+        <ul>
+          <li>Carregamento do MedMNIST</li>
+          <li>Professor ResNet18</li>
+          <li>Aprendiz SmallCNN</li>
+          <li>Laço de destilação</li>
+          <li>Avaliação e gráficos</li>
+        </ul>
+        <a class="btn-dl" data-link aria-disabled="true">
+          <span data-soon>Disponível em breve</span>
+          <span data-ready hidden>Acessar os scripts ↗</span>
+        </a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 07 · MATERIAIS ============================ -->
+<section id="materiais">
+  <div class="wrap">
+    <h2><span class="num">07</span>Materiais e links úteis</h2>
+    <p class="section-sub">Para revisar os conceitos e ir além do curso.</p>
+    <div class="mat-grid">
+      <a class="mat card" href="https://poloclub.github.io/cnn-explainer/" rel="noopener">
+        <span class="ico" aria-hidden="true">🧩</span>
+        <h3>CNN Explainer</h3>
+        <p>Visualização interativa de uma rede convolucional, camada por camada. Ótima para revisar convolução e <em>pooling</em>.</p>
+      </a>
+      <a class="mat card" href="https://medmnist.com/" rel="noopener">
+        <span class="ico" aria-hidden="true">🩻</span>
+        <h3>MedMNIST</h3>
+        <p>Coleção padronizada de bases de imagens biomédicas, de onde vem a PneumoniaMNIST usada na prática.</p>
+      </a>
+      <a class="mat card" href="https://docs.pytorch.org/tutorials/beginner/knowledge_distillation_tutorial.html" rel="noopener">
+        <span class="ico" aria-hidden="true">🔥</span>
+        <h3>Tutorial de KD do PyTorch</h3>
+        <p>Tutorial oficial com variações de destilação, para continuar estudando depois do curso.</p>
+      </a>
+      <a class="mat card" href="https://eabda.icmc.usp.br/" rel="noopener">
+        <span class="ico" aria-hidden="true">🎓</span>
+        <h3>X EABDA</h3>
+        <p>Programação completa da Escola Avançada de Big Data Analysis 2026, do ICMC/USP.</p>
+      </a>
+      <a class="mat card" href="http://www.gbdi.icmc.usp.br/" rel="noopener">
+        <span class="ico" aria-hidden="true">🗂️</span>
+        <h3>GBdI</h3>
+        <p>Grupo de Bases de Dados e Imagens do ICMC/USP, onde as ministrantes desenvolvem suas pesquisas.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 08 · REFERÊNCIAS ============================ -->
+<section id="referencias">
+  <div class="wrap">
+    <h2><span class="num">08</span>Referências</h2>
+    <p class="section-sub">Trabalhos que fundamentam o conteúdo do curso.</p>
+    <ol class="refs">
+      <li>Hinton, G., Vinyals, O., &amp; Dean, J. (2015). Distilling the knowledge in a neural network.
+        <a href="https://doi.org/10.48550/arXiv.1503.02531" rel="noopener">DOI: 10.48550/arXiv.1503.02531</a></li>
+      <li>Gou, J., Yu, B., Maybank, S. J., &amp; Tao, D. (2021). Knowledge distillation: A survey.
+        <em>International Journal of Computer Vision</em>, 129(6), 1789-1819.
+        <a href="https://doi.org/10.1007/s11263-021-01453-z" rel="noopener">DOI: 10.1007/s11263-021-01453-z</a></li>
+      <li>Li, X., Li, L., Li, M., Yan, P., Feng, T., Luo, H., Zhao, Y., &amp; Yin, S. (2026). Knowledge distillation and
+        teacher-student learning in medical imaging: Comprehensive overview, pivotal role, and future directions.
+        <em>Medical Image Analysis</em>, 107, 1-44.
+        <a href="https://doi.org/10.1016/j.media.2025.103819" rel="noopener">DOI: 10.1016/j.media.2025.103819</a></li>
+      <li>Mansourian, A. M., Ahmadi, R., Ghafouri, M., Babaei, A. M., Golezani, E. B., Ghamchi, Z. Y., Ramezanian, V.,
+        Taherian, A., Dinashi, K., Miri, A., &amp; Kasaei, S. (2025). A comprehensive survey on knowledge distillation.
+        <em>Transactions on Machine Learning Research</em>.
+        <a href="https://openreview.net/forum?id=3cbJzdR78B" rel="noopener">OpenReview</a></li>
+      <li>Asham, M. A., Al-Shargabi, A. A., Al-Sabri, R., &amp; Meftah, I. (2025). A lightweight deep learning model with
+        knowledge distillation for pulmonary diseases detection in chest X-rays.
+        <em>Multimedia Tools and Applications</em>, 84, 14885-14913.
+        <a href="https://doi.org/10.1007/s11042-024-19638-2" rel="noopener">DOI: 10.1007/s11042-024-19638-2</a></li>
+      <li>Bergmann, D. Destilação de conhecimento. IBM.
+        <a href="https://www.ibm.com/br-pt/think/topics/knowledge-distillation" rel="noopener">ibm.com/br-pt/think/topics/knowledge-distillation</a>
+        (acesso em 17 set. 2026).</li>
+      <li>Zgallai, W. A., &amp; Ozsahin, D. U. (Eds.). (2024). <em>Artificial intelligence and image processing in medical imaging</em>. Elsevier.</li>
+      <li>Prakash, D., &amp; Gupta, A. (2025). Introduction to computer-aided diagnosis (CAD) tools and applications.
+        In <em>Advances in Computers</em> (pp. 1-69). Elsevier.</li>
+    </ol>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <h3>Contato</h3>
+    <ul class="contacts">
+      <li><strong>Graciella Favoreto</strong><a href="mailto:graciellafavoreto@usp.br">graciellafavoreto@usp.br</a></li>
+      <li><strong>Mariana Suzuki</strong><a href="mailto:mariaya25@usp.br">mariaya25@usp.br</a></li>
+      <li><strong>Mirela Cazzolato</strong><a href="mailto:mirela@icmc.usp.br">mirela@icmc.usp.br</a></li>
+    </ul>
+
+    <div class="logos">
+      <div class="logos__group">
+        <span>Realização</span>
+        <img src="img/logos/eabda.png" alt="Escola Avançada de Big Data Analysis, USP">
+        <img src="img/logos/icmc.png" alt="ICMC, USP São Carlos">
+        <img src="img/logos/mba-ia-bigdata.png" alt="MBA em Inteligência Artificial e Big Data">
+        <img src="img/logos/gbdi.png" alt="GBdI, Grupo de Bases de Dados e Imagens">
+      </div>
+      <div class="logos__group">
+        <span>Apoio</span>
+        <img class="sm" src="img/logos/capes.png" alt="CAPES">
+        <img class="sm" src="img/logos/cnpq.png" alt="CNPq">
+        <img class="sm" src="img/logos/fapesp.png" alt="FAPESP">
+      </div>
+    </div>
+
+    <p class="fine">
+      Radiografias de exemplo do conjunto público PneumoniaMNIST (MedMNIST). Os resultados exibidos são da execução de
+      referência do material do curso e têm fins didáticos.
+    </p>
+  </div>
+</footer>
+
+<script>
+/* ---------- Slides e scripts: ativa cada cartão quando o link correspondente estiver preenchido ---------- */
+(function () {
+  var urls = {
+    slides: (window.SLIDES_URL || "").trim(),
+    scripts: (window.SCRIPTS_URL || "").trim()
+  };
+  document.querySelectorAll("[data-kind]").forEach(function (box) {
+    var url = urls[box.getAttribute("data-kind")];
+    if (!url) return;
+    box.classList.add("is-ready");
+    box.querySelectorAll("[data-soon]").forEach(function (el) { el.hidden = true; });
+    box.querySelectorAll("[data-ready]").forEach(function (el) { el.hidden = false; });
+    box.querySelectorAll("[data-link]").forEach(function (a) {
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.removeAttribute("aria-disabled");
+    });
+  });
+
+  var msg = document.getElementById("topbarMsg");
+  if (!msg) return;
+  if (urls.slides && urls.scripts) {
+    msg.innerHTML = "📦 Os <strong>slides</strong> e os <strong>scripts</strong> do curso já estão disponíveis!";
+  } else if (urls.slides) {
+    msg.innerHTML = "📦 Os <strong>slides</strong> já estão disponíveis. Os <strong>scripts</strong> chegam em breve.";
+  } else if (urls.scripts) {
+    msg.innerHTML = "📦 Os <strong>scripts</strong> já estão disponíveis. Os <strong>slides</strong> chegam em breve.";
+  }
+})();
+
+/* ---------- Laboratório de temperatura ---------- */
+(function () {
+  var classes = [
+    { name: "Pneumonia viral", z: 5.0, truth: true },
+    { name: "Pneumonia bacteriana", z: 3.0 },
+    { name: "COVID-19", z: 2.2 },
+    { name: "Normal", z: -1.5 }
+  ];
+  var box = document.getElementById("probs");
+  var input = document.getElementById("temp");
+  var out = document.getElementById("tOut");
+  var msg = document.getElementById("labMsg");
+  if (!box || !input) return;
+
+  var rows = classes.map(function (c) {
+    var row = document.createElement("div");
+    row.className = "prob";
+    row.innerHTML =
+      '<span class="prob__name">' + c.name + (c.truth ? "<small>classe verdadeira</small>" : "") + "</span>" +
+      '<span class="prob__track">' + (c.truth ? '<span class="prob__hard"></span>' : "") + '<span class="prob__fill"></span></span>' +
+      '<span class="prob__val"></span>';
+    box.appendChild(row);
+    return { fill: row.querySelector(".prob__fill"), val: row.querySelector(".prob__val") };
+  });
+
+  function pct(p) { return (p * 100).toFixed(1).replace(".", ",") + "%"; }
+
+  function render() {
+    var T = parseFloat(input.value);
+    var ex = classes.map(function (c) { return Math.exp(c.z / T); });
+    var sum = ex.reduce(function (a, b) { return a + b; }, 0);
+    ex.forEach(function (e, i) {
+      var p = e / sum;
+      rows[i].fill.style.width = (p * 100) + "%";
+      rows[i].val.textContent = pct(p);
+    });
+    out.textContent = "T = " + String(T).replace(".", ",");
+    if (T < 2) {
+      msg.textContent = "Quase um rótulo duro: o professor praticamente só “diz” a classe vencedora, e as outras somem.";
+    } else if (T <= 6) {
+      msg.textContent = "As semelhanças aparecem: as outras pneumonias ganham probabilidade, e “normal” continua baixa. É esse dark knowledge que o aprendiz aproveita.";
+    } else {
+      msg.textContent = "Suave demais: a distribuição fica quase uniforme e a informação começa a se diluir. Por isso a temperatura é um hiperparâmetro a ajustar.";
+    }
+  }
+  input.addEventListener("input", render);
+  render();
+})();
+
+/* ---------- Matrizes de confusão (linhas: real; colunas: predito; 0 = normal, 1 = pneumonia) ---------- */
+(function () {
+  var host = document.getElementById("cms");
+  if (!host) return;
+  var data = [
+    ["Professor", [[178, 56], [9, 381]]],
+    ["Aprendiz (baseline)", [[126, 108], [9, 381]]],
+    ["Aprendiz + KD (T = 4)", [[154, 80], [15, 375]]],
+    ["Aprendiz + KD (T = 10)", [[159, 75], [27, 363]]]
+  ];
+  var max = 390;
+  data.forEach(function (d) {
+    var m = d[1];
+    function cell(v) {
+      var w = Math.round(8 + 87 * v / max);
+      return '<b style="--w:' + w + '"' + (w > 55 ? ' class="dk"' : "") + ">" + v + "</b>";
+    }
+    var el = document.createElement("div");
+    el.className = "cm";
+    el.innerHTML =
+      "<h5>" + d[0] + "</h5>" +
+      '<div class="cm__grid">' +
+      "<span></span><span>pred. normal</span><span>pred. pneumonia</span>" +
+      "<span>normal</span>" + cell(m[0][0]) + cell(m[0][1]) +
+      "<span>pneumonia</span>" + cell(m[1][0]) + cell(m[1][1]) +
+      "</div>";
+    host.appendChild(el);
+  });
+})();
+
+/* ---------- Destaca a seção atual na navegação ---------- */
+(function () {
+  if (!("IntersectionObserver" in window)) return;
+  var links = {};
+  document.querySelectorAll("nav a[href^='#']").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      Object.keys(links).forEach(function (k) { links[k].classList.toggle("is-active", k === e.target.id); });
+    });
+  }, { rootMargin: "-45% 0px -50% 0px" });
+  document.querySelectorAll("main section[id]").forEach(function (s) { io.observe(s); });
+})();
+</script>
+
+</body>
+</html>
