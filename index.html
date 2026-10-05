@@ -18,14 +18,14 @@
      Exemplos:
        SLIDES_URL  = "slides.pdf"   (PDF colocado nesta mesma pasta do index)
        SLIDES_URL  = "https://drive.google.com/..."
-       SCRIPTS_URL = "https://github.com/mtcazzolato/eabda-kd-scripts"
+       SCRIPTS_URL = "https://github.com/usuario/repositorio"
      A faixa do topo e os cartões da seção "Slides e scripts"
      passam de "Em breve" para "Disponível" sozinhos. Podemos publicar um
      antes do outro.
      ===================================================================== -->
 <script>
   window.SLIDES_URL  = "";
-  window.SCRIPTS_URL = "";
+  window.SCRIPTS_URL = "https://github.com/graciellafavoreto/knowledge-distillation-for-medical-image-classification";
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -360,6 +360,7 @@ input[type=range]{width:100%; accent-color:var(--accent); height:28px; cursor:po
 .kv{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
 .kv span{font-size:.8rem; font-weight:600; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:3px 10px}
 .kv b{color:var(--ink)}
+.step p.step__note{margin:10px 0 0; font-size:.86rem; color:var(--ink-3)}
 @media (max-width:560px){.step{grid-template-columns:minmax(0,1fr); gap:12px; padding:20px}}
 pre.code{margin:14px 0 0; padding:16px 18px; border-radius:12px; background:#0c2226; color:#d9e7e6; font-size:.84rem; line-height:1.6; overflow-x:auto}
 pre.code .k{color:#f2a17c} pre.code .f{color:#8fd3d8} pre.code .n{color:#ffd28a} pre.code .s{color:#b9e4a1} pre.code .c{color:#7f9a9b} pre.code .o{color:#9fb8b9}
@@ -426,6 +427,7 @@ table.tbl{width:100%; border-collapse:collapse; font-size:.88rem; margin-top:10p
   background:linear-gradient(140deg,#0e5a61,#1d8a92 55%,#e0835c)}
 .dl h3{font-size:1.3rem; margin:0 0 6px}
 .dl p{margin:0 0 12px; color:var(--ink-2); font-size:.97rem}
+.dl code{font-size:.86em; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:1px 6px; color:var(--ink)}
 .dl ul{margin:0 0 24px; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px 16px; font-size:.9rem; color:var(--ink-2)}
 .dl ul li::before{content:"› "; color:var(--accent); font-weight:800}
 .badge{display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; font-size:.78rem; font-weight:700;
@@ -915,7 +917,8 @@ footer a{color:var(--ink-2)}
         <h3>PneumoniaMNIST · MedMNIST</h3>
         <p>
           Radiografias de tórax padronizadas, da coleção aberta <a href="https://medmnist.com/" rel="noopener">MedMNIST</a>,
-          rotuladas em duas classes. É uma base pública, leve e pronta para uso, ideal para experimentar KD em pouco tempo.
+          rotuladas em duas classes. Usamos a versão de 128×128 pixels, com treino, validação e teste balanceados
+          (metade normal, metade pneumonia), para que a acurácia fique mais fácil de interpretar.
         </p>
       </div>
       <div class="xrays" role="group" aria-label="Exemplos de radiografias do conjunto, com seus rótulos">
@@ -946,10 +949,11 @@ footer a{color:var(--ink-2)}
         <div class="step__n">2</div>
         <div>
           <h3>Modelo Professor</h3>
-          <p>Uma <strong>ResNet18</strong> com pesos já treinados. É o modelo mais pesado do curso.</p>
-<pre class="code"><code>teacher = <span class="f">build_teacher</span>().<span class="f">to</span>(device)
-<span class="f">print</span>(<span class="s">f"Teacher parameters: </span>{<span class="f">count_parameters</span>(teacher)<span class="o">:,</span>}<span class="s">"</span>)
-<span class="c"># Teacher parameters: 11,171,266</span></code></pre>
+          <p>Uma <strong>ResNet18</strong> adaptada para radiografias (1 canal de entrada, 2 classes). É o modelo mais pesado do curso:
+            pode ser treinada do zero ou carregada dos pesos já prontos.</p>
+<pre class="code"><code>teacher = utils.<span class="f">load_teacher</span>(<span class="s">"weights/teacher.pth"</span>, device)
+<span class="f">print</span>(<span class="s">f"Teacher: </span>{utils.<span class="f">count_parameters</span>(teacher)<span class="o">:,</span>}<span class="s"> parâmetros | </span>{utils.<span class="f">model_size_mb</span>(teacher)<span class="o">:.1f</span>}<span class="s"> MB"</span>)
+<span class="c"># Teacher: 11,171,266 parâmetros | 44.7 MB</span></code></pre>
         </div>
       </article>
 
@@ -957,10 +961,10 @@ footer a{color:var(--ink-2)}
         <div class="step__n">3</div>
         <div>
           <h3>Modelo Aprendiz</h3>
-          <p>Uma <strong>SmallCNN</strong> treinada <em>sem</em> a ajuda do professor, que serve de <em>baseline</em> para a comparação.</p>
-<pre class="code"><code>student = <span class="f">SmallCNN</span>().<span class="f">to</span>(device)
-<span class="f">print</span>(<span class="s">f"Student parameters: </span>{<span class="f">count_parameters</span>(student)<span class="o">:,</span>}<span class="s">"</span>)
-<span class="c"># Student parameters: 23,426</span></code></pre>
+          <p>Uma <strong>SmallCNN</strong> de 23.426 parâmetros, treinada <em>sem</em> a ajuda do professor, que serve de <em>baseline</em> para a comparação.</p>
+<pre class="code"><code>utils.<span class="f">set_seed</span>(<span class="n">42</span>)
+student = <span class="f">SmallCNN</span>().<span class="f">to</span>(device)
+optimizer_student = torch.optim.<span class="f">Adam</span>(student.<span class="f">parameters</span>(), lr=<span class="n">1e-3</span>)</code></pre>
         </div>
       </article>
 
@@ -968,15 +972,17 @@ footer a{color:var(--ink-2)}
         <div class="step__n">4</div>
         <div>
           <h3>Knowledge Distillation</h3>
-          <p>O professor, já treinado e <strong>congelado</strong>, orienta uma nova SmallCNN combinando <em>soft</em> e <em>hard-targets</em>.</p>
-<pre class="code"><code>student_kd = <span class="f">SmallCNN</span>().<span class="f">to</span>(device)
+          <p>O professor, já treinado e <strong>congelado</strong>, orienta uma nova SmallCNN combinando <em>soft</em> e <em>hard-targets</em>.
+            Treinamos com duas temperaturas, para comparar.</p>
+<pre class="code"><code>utils.<span class="f">set_seed</span>(<span class="n">42</span>)
+student_kd_4 = utils.<span class="f">SmallCNN</span>().<span class="f">to</span>(device)
+optimizer_kd_4 = torch.optim.<span class="f">Adam</span>(student_kd_4.<span class="f">parameters</span>(), lr=<span class="n">1e-3</span>)
 
-TEMPERATURE = <span class="n">4.0</span>
-ALPHA = <span class="n">0.5</span>
-EPOCHS = <span class="n">10</span>
-
-optimizer = torch.optim.<span class="f">Adam</span>(student_kd.<span class="f">parameters</span>(), lr=<span class="n">1e-3</span>)
-criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
+history_student_kd_4 = utils.<span class="f">train_knowledge_distillation</span>(
+    teacher, student_kd_4, train_loader, val_loader, epochs,
+    T=<span class="n">4</span>, alpha=<span class="n">0.75</span>, optimizer=optimizer_kd_4, device=device)</code></pre>
+          <div class="kv"><span>T = <b>4</b> e <b>10</b></span><span>α = <b>0,75</b></span><span><b>20</b> épocas</span><span>Adam · lr <b>1e-3</b></span></div>
+          <p class="step__note">No notebook, α é o peso do rótulo verdadeiro: L = α·CE + (1 − α)·T²·KL.</p>
         </div>
       </article>
 
@@ -984,7 +990,8 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
         <div class="step__n">5</div>
         <div>
           <h3>Avaliação final</h3>
-          <p>Comparamos professor, aprendiz <em>baseline</em> e aprendiz + KD com diferentes temperaturas, usando acurácia e matrizes de confusão.</p>
+          <p>Comparamos professor, aprendiz <em>baseline</em> e aprendiz + KD no conjunto de teste, com acurácia, <em>recall</em>, precisão, MCC
+            e matrizes de confusão, além do custo de cada modelo (tamanho e tempo de inferência).</p>
         </div>
       </article>
     </div>
@@ -992,27 +999,27 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
     <div class="results">
       <figure class="chart card" aria-labelledby="chartTitle">
         <figcaption id="chartTitle">Acurácia no conjunto de teste</figcaption>
-        <p class="sub">624 radiografias · passe o mouse nas barras para ver os acertos</p>
+        <p class="sub">468 radiografias (teste balanceado) · passe o mouse nas barras para ver os acertos</p>
         <div class="bars">
-          <div class="bar bar--ref" tabindex="0" data-tip="559 de 624 acertos">
+          <div class="bar bar--ref" tabindex="0" data-tip="417 de 468 acertos">
             <span class="bar__label">Professor<small>ResNet18</small></span>
-            <span class="bar__track"><span class="bar__fill" style="--v:89.6"></span></span>
-            <span class="bar__val">89,6%</span>
+            <span class="bar__track"><span class="bar__fill" style="--v:89.1"></span></span>
+            <span class="bar__val">89,1%</span>
           </div>
-          <div class="bar" tabindex="0" data-tip="507 de 624 acertos">
+          <div class="bar" tabindex="0" data-tip="385 de 468 acertos">
             <span class="bar__label">Aprendiz<small>SmallCNN, sem KD</small></span>
-            <span class="bar__track"><span class="bar__fill" style="--v:81.2"></span></span>
-            <span class="bar__val">81,2%</span>
+            <span class="bar__track"><span class="bar__fill" style="--v:82.3"></span></span>
+            <span class="bar__val">82,3%</span>
           </div>
-          <div class="bar bar--hl" tabindex="0" data-tip="529 de 624 acertos">
+          <div class="bar bar--hl" tabindex="0" data-tip="390 de 468 acertos">
             <span class="bar__label">Aprendiz + KD<small>T = 4</small></span>
-            <span class="bar__track"><span class="bar__fill" style="--v:84.8"></span></span>
-            <span class="bar__val">84,8%</span>
+            <span class="bar__track"><span class="bar__fill" style="--v:83.3"></span></span>
+            <span class="bar__val">83,3%</span>
           </div>
-          <div class="bar" tabindex="0" data-tip="522 de 624 acertos">
+          <div class="bar" tabindex="0" data-tip="389 de 468 acertos">
             <span class="bar__label">Aprendiz + KD<small>T = 10</small></span>
-            <span class="bar__track"><span class="bar__fill" style="--v:83.7"></span></span>
-            <span class="bar__val">83,7%</span>
+            <span class="bar__track"><span class="bar__fill" style="--v:83.1"></span></span>
+            <span class="bar__val">83,1%</span>
           </div>
         </div>
         <div class="axis" aria-hidden="true"><span></span><div><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span></span></div>
@@ -1020,38 +1027,39 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
 
       <div class="stats">
         <div class="stat card">
-          <div class="stat__v acc">+3,6 p.p.</div>
+          <div class="stat__v acc">+1,1 p.p.</div>
           <p>de acurácia para o aprendiz treinado com destilação (T = 4), em relação ao mesmo aprendiz treinado sozinho.</p>
         </div>
         <div class="stat card">
-          <div class="stat__v">≈ 43%</div>
-          <p>da distância entre aprendiz e professor recuperada pela destilação, com um modelo cerca de 477 vezes menor.</p>
+          <div class="stat__v">≈ 4×</div>
+          <p>mais rápido na inferência que o professor (1,6 contra 6,5 ms por <em>batch</em>), ocupando 0,09 MB em disco contra 44,7 MB.</p>
         </div>
       </div>
     </div>
 
     <details class="more card">
-      <summary>Ver matrizes de confusão e tabela</summary>
+      <summary>Ver métricas e matrizes de confusão</summary>
       <div class="cms" id="cms"></div>
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th>Modelo</th><th>Parâmetros</th><th>Acurácia</th><th>Falsos positivos</th><th>Falsos negativos</th></tr></thead>
+          <thead><tr><th>Modelo</th><th>Acurácia</th><th>Recall</th><th>Precisão</th><th>MCC</th><th>Tamanho</th><th>Latência</th></tr></thead>
           <tbody>
-            <tr><td>Professor (ResNet18)</td><td>11.171.266</td><td>89,6%</td><td>56</td><td>9</td></tr>
-            <tr><td>Aprendiz (SmallCNN)</td><td>23.426</td><td>81,2%</td><td>108</td><td>9</td></tr>
-            <tr><td>Aprendiz + KD (T = 4)</td><td>23.426</td><td>84,8%</td><td>80</td><td>15</td></tr>
-            <tr><td>Aprendiz + KD (T = 10)</td><td>23.426</td><td>83,7%</td><td>75</td><td>27</td></tr>
+            <tr><td>Professor (ResNet18)</td><td>89,1%</td><td>99,1%</td><td>82,6%</td><td>0,798</td><td>44,7 MB</td><td>6,5 ms</td></tr>
+            <tr><td>Aprendiz (SmallCNN)</td><td>82,3%</td><td>88,9%</td><td>78,5%</td><td>0,651</td><td>0,09 MB</td><td>1,7 ms</td></tr>
+            <tr><td>Aprendiz + KD (T = 4)</td><td>83,3%</td><td>89,7%</td><td>79,5%</td><td>0,672</td><td>0,09 MB</td><td>1,6 ms</td></tr>
+            <tr><td>Aprendiz + KD (T = 10)</td><td>83,1%</td><td>88,0%</td><td>80,2%</td><td>0,666</td><td>0,09 MB</td><td>1,6 ms</td></tr>
           </tbody>
         </table>
       </div>
       <p class="insight">
-        Repare no <em>trade-off</em>: a destilação reduz os falsos positivos do aprendiz (108 → 80 com T = 4), mas aumenta
-        os falsos negativos (9 → 15), ou seja, pneumonias que passam despercebidas. Em aplicações clínicas, esse tipo de troca precisa
-        ser avaliado com cuidado, e é um dos desafios práticos discutidos no curso.
+        Em diagnóstico por imagem, o <em>recall</em> da classe pneumonia mede quantos casos doentes o modelo encontra: um falso negativo
+        é um doente mandado para casa. Repare também que o ganho do KD aqui é pequeno e o teste tem poucas imagens, então parte da
+        diferença pode ser ruído. O ideal é repetir com várias <em>seeds</em> e reportar média e desvio, um dos desafios práticos
+        discutidos no curso. Latência medida por <em>batch</em>, na GPU usada no notebook.
       </p>
     </details>
     <p style="margin:14px 0 0; font-size:.84rem; color:var(--ink-3)">
-      Valores da execução de referência apresentada no curso. Ao rodar os scripts, seus números podem variar um pouco.
+      Valores da execução salva no notebook do curso (teste balanceado, <em>seed</em> 42). Ao rodar os scripts, seus números podem variar um pouco.
     </p>
   </div>
 </section>
@@ -1092,9 +1100,12 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
           <span class="badge" data-soon>⏳ Em breve</span>
           <span class="badge badge--ok" data-ready hidden>✅ Disponível</span>
         </div>
-        <h3>Notebooks e scripts da parte prática</h3>
+        <h3>Notebook e scripts da parte prática</h3>
         <p data-soon>Os scripts serão publicados aqui. Volte a esta página depois do curso: o link aparecerá neste cartão.</p>
-        <p data-ready hidden>Baixe ou abra o código e reproduza cada etapa do <em>pipeline</em>.</p>
+        <p data-ready hidden>
+          No GitHub da Graciella Favoreto: um notebook Jupyter dividido em cinco blocos, o <code>utils.py</code> de apoio
+          e os pesos já treinados. Roda no seu computador ou no Google Colab.
+        </p>
         <ul>
           <li>Carregamento do MedMNIST</li>
           <li>Professor ResNet18</li>
@@ -1104,7 +1115,7 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
         </ul>
         <a class="btn-dl" data-link aria-disabled="true">
           <span data-soon>Disponível em breve</span>
-          <span data-ready hidden>Acessar os scripts ↗</span>
+          <span data-ready hidden>Abrir no GitHub ↗</span>
         </a>
       </article>
     </div>
@@ -1299,12 +1310,12 @@ criterion = nn.<span class="f">CrossEntropyLoss</span>()</code></pre>
   var host = document.getElementById("cms");
   if (!host) return;
   var data = [
-    ["Professor", [[178, 56], [9, 381]]],
-    ["Aprendiz (baseline)", [[126, 108], [9, 381]]],
-    ["Aprendiz + KD (T = 4)", [[154, 80], [15, 375]]],
-    ["Aprendiz + KD (T = 10)", [[159, 75], [27, 363]]]
+    ["Professor", [[185, 49], [2, 232]]],
+    ["Aprendiz (baseline)", [[177, 57], [26, 208]]],
+    ["Aprendiz + KD (T = 4)", [[180, 54], [24, 210]]],
+    ["Aprendiz + KD (T = 10)", [[183, 51], [28, 206]]]
   ];
-  var max = 390;
+  var max = 234;
   data.forEach(function (d) {
     var m = d[1];
     function cell(v) {
