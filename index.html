@@ -17,14 +17,15 @@
      Quando estiverem prontos, colar os links abaixo
      Exemplos:
        SLIDES_URL  = "slides.pdf"   (PDF colocado nesta mesma pasta do index)
-       SLIDES_URL  = "https://drive.google.com/..."
+       SLIDES_ONLINE_URL = "https://1drv.ms/..."   (versão online, no PowerPoint; opcional)
        SCRIPTS_URL = "https://github.com/usuario/repositorio"
-     A faixa do topo e os cartões da seção "Slides e scripts"
+     Os cartões da seção "Slides e scripts"
      passam de "Em breve" para "Disponível" sozinhos. Podemos publicar um
      antes do outro.
      ===================================================================== -->
 <script>
-  window.SLIDES_URL  = "";
+  window.SLIDES_URL  = "slides.pdf";
+  window.SLIDES_ONLINE_URL = "https://1drv.ms/p/c/dc6e21f90c90bfed/IQDnL-jS6dPLQKvTFfOFYlEJAQw2W9DkZ6t4ei6DO4dhGJw?e=1SNRIF";
   window.SCRIPTS_URL = "https://github.com/graciellafavoreto/knowledge-distillation-for-medical-image-classification";
 </script>
 
@@ -75,12 +76,6 @@ a{color:var(--accent); text-underline-offset:3px}
 .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
 @media (max-width:480px){.wrap{padding:0 16px}}
 code, pre{font-family:var(--mono)}
-
-/* ---------- Faixa de aviso (slides e scripts) ---------- */
-.topbar{background:var(--accent-soft); border-bottom:1px solid color-mix(in srgb, var(--accent) 22%, transparent); font-size:.9rem; color:var(--ink-2)}
-.topbar__inner{display:flex; flex-wrap:wrap; gap:4px 14px; align-items:center; justify-content:center; padding:9px 0; text-align:center}
-.topbar a{font-weight:700; text-decoration:none}
-.topbar a:hover{text-decoration:underline}
 
 /* ---------- Cabeçalho ---------- */
 .hero{position:relative; overflow:hidden; color:#fff; background:#0a2c31}
@@ -433,11 +428,14 @@ table.tbl{width:100%; border-collapse:collapse; font-size:.88rem; margin-top:10p
 .badge{display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; font-size:.78rem; font-weight:700;
   background:var(--accent-soft); color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 30%, transparent)}
 .badge--ok{background:var(--primary-soft); color:var(--primary); border-color:color-mix(in srgb, var(--primary) 30%, transparent)}
-.btn-dl{margin-top:auto; align-self:flex-start; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 24px; border-radius:14px; font-weight:800; font-size:1rem;
+.dl__actions{margin-top:auto; display:flex; flex-wrap:wrap; gap:10px}
+.btn-dl{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 24px; border-radius:14px; font-weight:800; font-size:1rem;
   text-decoration:none; white-space:nowrap; background:var(--accent); color:#fff; transition:transform .12s ease, filter .12s ease}
 @media (prefers-color-scheme: dark){.btn-dl{color:#24120a}}
 .btn-dl:hover{transform:translateY(-1px); filter:brightness(1.06)}
 .btn-dl[aria-disabled="true"]{background:var(--surface-2); color:var(--ink-3); border:1px solid var(--line); cursor:default; transform:none; filter:none}
+.btn-dl.btn-dl--ghost{background:transparent; color:var(--accent); box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 60%, transparent)}
+.btn-dl.btn-dl--ghost:hover{background:var(--accent-soft); filter:none}
 
 /* ---------- 07 · Materiais ---------- */
 .mat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px}
@@ -470,14 +468,6 @@ footer a{color:var(--ink-2)}
 </style>
 </head>
 <body>
-
-<!-- Faixa de aviso (o texto muda sozinho conforme SLIDES_URL e SCRIPTS_URL são preenchidos) -->
-<div class="topbar">
-  <div class="wrap topbar__inner">
-    <span id="topbarMsg">📦 Os <strong>slides</strong> e os <strong>scripts</strong> do curso serão disponibilizados nesta página em breve.</span>
-    <a href="#slides-scripts">Ver slides e scripts →</a>
-  </div>
-</div>
 
 <header class="hero">
   <div class="hero__bg" aria-hidden="true"></div>
@@ -1080,18 +1070,25 @@ history_student_kd_4 = utils.<span class="f">train_knowledge_distillation</span>
         </div>
         <h3>Slides da apresentação</h3>
         <p data-soon>Os slides usados na aula serão publicados aqui. Volte a esta página depois do curso: o link aparecerá neste cartão.</p>
-        <p data-ready hidden>Toda a parte teórica da aula, para revisar com calma.</p>
+        <p data-ready hidden>
+          Os slides usados na aula, em PDF ou online no PowerPoint. Na versão online, entre no modo
+          Apresentação de Slides para ver as animações.
+        </p>
         <ul>
           <li>Diagnóstico auxiliado por computador</li>
           <li>Redes neurais profundas</li>
           <li>Knowledge Distillation</li>
           <li>KD em imagens médicas</li>
           <li>Prática e resultados</li>
+          <li>Material complementar</li>
         </ul>
-        <a class="btn-dl" data-link aria-disabled="true">
-          <span data-soon>Disponível em breve</span>
-          <span data-ready hidden>Abrir os slides ↗</span>
-        </a>
+        <div class="dl__actions">
+          <a class="btn-dl" data-link aria-disabled="true">
+            <span data-soon>Disponível em breve</span>
+            <span data-ready hidden>Abrir o PDF ↗</span>
+          </a>
+          <a class="btn-dl btn-dl--ghost" data-link-extra hidden>Ver no PowerPoint Online ↗</a>
+        </div>
       </article>
 
       <article class="dl" data-kind="scripts">
@@ -1113,10 +1110,12 @@ history_student_kd_4 = utils.<span class="f">train_knowledge_distillation</span>
           <li>Laço de destilação</li>
           <li>Avaliação e gráficos</li>
         </ul>
-        <a class="btn-dl" data-link aria-disabled="true">
-          <span data-soon>Disponível em breve</span>
-          <span data-ready hidden>Abrir no GitHub ↗</span>
-        </a>
+        <div class="dl__actions">
+          <a class="btn-dl" data-link aria-disabled="true">
+            <span data-soon>Disponível em breve</span>
+            <span data-ready hidden>Abrir no GitHub ↗</span>
+          </a>
+        </div>
       </article>
     </div>
   </div>
@@ -1231,29 +1230,31 @@ history_student_kd_4 = utils.<span class="f">train_knowledge_distillation</span>
     slides: (window.SLIDES_URL || "").trim(),
     scripts: (window.SCRIPTS_URL || "").trim()
   };
+  /* segundo link, opcional, de cada cartão (hoje só os slides têm: a versão online) */
+  var extras = {
+    slides: (window.SLIDES_ONLINE_URL || "").trim()
+  };
+  function activate(a, url) {
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.removeAttribute("aria-disabled");
+    a.hidden = false;
+  }
   document.querySelectorAll("[data-kind]").forEach(function (box) {
-    var url = urls[box.getAttribute("data-kind")];
-    if (!url) return;
+    var kind = box.getAttribute("data-kind");
+    var url = urls[kind], extra = extras[kind] || "";
+    if (!url && !extra) return;
     box.classList.add("is-ready");
     box.querySelectorAll("[data-soon]").forEach(function (el) { el.hidden = true; });
     box.querySelectorAll("[data-ready]").forEach(function (el) { el.hidden = false; });
     box.querySelectorAll("[data-link]").forEach(function (a) {
-      a.href = url;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.removeAttribute("aria-disabled");
+      if (url) activate(a, url); else a.hidden = true;
+    });
+    box.querySelectorAll("[data-link-extra]").forEach(function (a) {
+      if (extra) activate(a, extra);
     });
   });
-
-  var msg = document.getElementById("topbarMsg");
-  if (!msg) return;
-  if (urls.slides && urls.scripts) {
-    msg.innerHTML = "📦 Os <strong>slides</strong> e os <strong>scripts</strong> do curso já estão disponíveis!";
-  } else if (urls.slides) {
-    msg.innerHTML = "📦 Os <strong>slides</strong> já estão disponíveis. Os <strong>scripts</strong> chegam em breve.";
-  } else if (urls.scripts) {
-    msg.innerHTML = "📦 Os <strong>scripts</strong> já estão disponíveis. Os <strong>slides</strong> chegam em breve.";
-  }
 })();
 
 /* ---------- Laboratório de temperatura ---------- */
